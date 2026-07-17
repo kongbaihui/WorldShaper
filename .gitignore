@@ -1,0 +1,18 @@
+# Ignore everything by default
+/*
+
+# Keep .gitignore itself
+!/.gitignore
+
+# Only track these four Unity project folders
+!/Assets/
+!/Assets/**
+
+!/Packages/
+!/Packages/**
+
+!/ProjectSettings/
+!/ProjectSettings/**
+
+!/docs/
+!/docs/**
