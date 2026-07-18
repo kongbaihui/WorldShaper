@@ -13,10 +13,16 @@ public class heroscrip : MonoBehaviour
     public float xSpeed = 3f;
     public float ySpeed = 3f;
     private Collider2D SelfColli;
-    public float BulletInitialSpeed = 7f;
+    //public float BulletInitialSpeed = 7f;
     public GameObject TheArrow;
     public bool IsMelee = false;
     public float MeleeRange = 2f;
+    //used in shoot block
+    public float MaxBulletSpeed = 50f;
+    public float BulletSpeed = 0f;
+    private bool HaveArrowInStay = false;
+
+    //end use
 
     [Header("Ground Detection")]
     [Tooltip("Layers that can be queried below the Hero. Ground and Breakable are enabled by default.")]
@@ -79,22 +85,36 @@ public class heroscrip : MonoBehaviour
         bool canAttack = terrainController == null || !terrainController.IsBuildMode;
 
         //shoot
+        //change by chu at 7/18/16:00 为远程攻击增加蓄力及滞空
         if (canAttack)
         {
             if (!IsMelee)
             {
-                if (Mouse.current.leftButton.wasPressedThisFrame)
+                CleanMeleeState();
+                // check interval
+                if ((Time.time - BulletSpawnAt) > ShootInterval)
                 {
-                    // check interval
-                    if ((Time.time - BulletSpawnAt) > ShootInterval)
+                    if (Mouse.current.leftButton.isPressed)
                     {
-                        ShootArrow();
-                        BulletSpawnAt = Time.time;
+                        if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
+                        HaveArrowInStay = true;
+                        if (BulletSpeed < MaxBulletSpeed) { BulletSpeed += 0.1f; }
+                    }
+                    else
+                    {
+                        if (HaveArrowInStay)
+                        {
+                            ShootArrow(BulletSpeed);
+                            BulletSpawnAt = Time.time;
+                            CleanNotMeleeState();
+                        }
                     }
                 }
+
             }
             else
             {
+                CleanNotMeleeState();
                 if (Mouse.current.leftButton.wasPressedThisFrame)
                 {
                     // check interval
@@ -127,9 +147,8 @@ public class heroscrip : MonoBehaviour
         {
             IsMelee = !IsMelee;
         }
-        //change to create terrain here !!! !!!
-        //if(Keyboard.current.eKey.wasPressedThisFrame)
-        //{}
+
+
 
     }
     //return whether on the ground
@@ -196,7 +215,7 @@ public class heroscrip : MonoBehaviour
                Mathf.Abs(wallBody.angularVelocity) <= stableWallAngularSpeed;
     }
 
-    private void ShootArrow()
+    private void ShootArrow(float BulletSpeed)
     {
         //inst obj
         GameObject bullet = Instantiate(Resources.Load("PreFabs/Bullet") as GameObject);
@@ -206,7 +225,7 @@ public class heroscrip : MonoBehaviour
         //give speed
         Vector2 nomvct = bullet.transform.up;
         Rigidbody2D BulletPhysics = bullet.GetComponent<Rigidbody2D>();
-        BulletPhysics.velocity = nomvct.normalized * BulletInitialSpeed;
+        BulletPhysics.velocity = nomvct.normalized * BulletSpeed;
 
         bulletscrip bulletDamage = bullet.GetComponent<bulletscrip>();
         if (bulletDamage != null)
@@ -239,5 +258,16 @@ public class heroscrip : MonoBehaviour
                 TheArrow.transform,
                 terrainController != null ? terrainController.DamageService : null);
         }
+    }
+
+
+
+    private void CleanMeleeState()
+    { }
+
+    private void CleanNotMeleeState()
+    {
+        HaveArrowInStay = false;
+        BulletSpeed = 0;
     }
 }
