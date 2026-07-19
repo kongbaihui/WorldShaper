@@ -7,6 +7,13 @@ namespace FinalGame.Boss
     [DisallowMultipleComponent]
     public sealed class BossTerrainAttackController : MonoBehaviour
     {
+        private const float DebrisScale = 2f;
+        private const float DebrisSpeed = 15f;
+        private const int DebrisSortingOrder = 18;
+
+        private static readonly float[] DebrisAngles =
+            { 20f, 52f, 86f, 120f, 154f, 205f, 335f };
+
         [Header("Required References")]
         [SerializeField] private TerrainCreationService creationService;
         [SerializeField] private TerrainRegistry registry;
@@ -33,6 +40,10 @@ namespace FinalGame.Boss
         [SerializeField, Min(0.1f)] private float destructionRange = 70f;
 
         private readonly List<TerrainEntity> terrainBuffer = new List<TerrainEntity>(32);
+        private readonly List<SpriteRenderer> terrainSegmentRenderers =
+            new List<SpriteRenderer>(10);
+        private readonly List<GameObject> preparedDebris =
+            new List<GameObject>(7);
         private readonly RaycastHit2D[] raycastBuffer = new RaycastHit2D[32];
         private bool referencesReady;
 
@@ -229,6 +240,12 @@ namespace FinalGame.Boss
                 if (target == null || target.IsBeingDestroyed || !IsStillRegistered(target))
                 {
                     return false;
+                }
+
+                if (target is FallingStoneWallTerrain ||
+                    target is FloatingPlatformTerrain)
+                {
+                    return ExecuteSegmentedTerrainCollapse(target);
                 }
 
                 target.DestroyTerrain(true);
@@ -651,6 +668,216 @@ namespace FinalGame.Boss
         {
             return terrain != null && terrain.IsAlive && !terrain.IsBeingDestroyed &&
                    Vector2.Distance(bossTransform.position, terrain.transform.position) <= destructionRange;
+        }
+
+        private bool ExecuteSegmentedTerrainCollapse(
+            TerrainEntity terrain)
+        {
+            // 执行时先结束预警，再读取最终存活段的位置和颜色。
+            if (telegraph != null)
+            {
+                telegraph.Clear();
+            }
+
+            if (terrain is FallingStoneWallTerrain wall)
+            {
+                wall.CopyActiveSegmentRenderers(
+                    terrainSegmentRenderers);
+            }
+            else if (terrain is FloatingPlatformTerrain platform)
+            {
+                platform.CopyActiveSegmentRenderers(
+                    terrainSegmentRenderers);
+            }
+
+            if (terrainSegmentRenderers.Count == 0)
+            {
+                terrain.DestroyTerrain(true);
+                return true;
+            }
+
+            int debrisCount = Mathf.Min(
+                DebrisAngles.Length,
+                terrainSegmentRenderers.Count);
+            preparedDebris.Clear();
+
+            try
+            {
+                for (int i = 0; i < debrisCount; i++)
+                {
+                    int segmentIndex = GetEvenlySpacedIndex(
+                        i,
+                        debrisCount,
+                        terrainSegmentRenderers.Count);
+                    SpriteRenderer sourceRenderer =
+                        terrainSegmentRenderers[segmentIndex];
+                    if (sourceRenderer == null ||
+                        sourceRenderer.sprite == null)
+                    {
+                        CleanupPreparedDebris();
+                        return false;
+                    }
+
+                    float angle = GetDebrisAngle(i, debrisCount);
+                    float radians = angle * Mathf.Deg2Rad;
+                    Vector2 velocity = new Vector2(
+                        Mathf.Cos(radians),
+                        Mathf.Sin(radians)) * DebrisSpeed;
+
+                    CreateDebris(
+                        i,
+                        sourceRenderer,
+                        velocity);
+                }
+            }
+            catch (System.Exception exception)
+            {
+                CleanupPreparedDebris();
+                Debug.LogException(exception, this);
+                return false;
+            }
+
+            IgnorePreparedDebrisCollisions();
+
+            // 原地形段立即隐藏，之后只由新碎块显示和参与碰撞。
+            for (int i = 0; i < terrainSegmentRenderers.Count; i++)
+            {
+                SpriteRenderer renderer = terrainSegmentRenderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                Transform segmentTransform = renderer.transform.parent;
+                if (segmentTransform != null)
+                {
+                    segmentTransform.gameObject.SetActive(false);
+                }
+                else
+                {
+                    renderer.enabled = false;
+                }
+            }
+
+            // 只销毁一次原父对象，由 TerrainEntity 统一注销 Registry。
+            terrain.DestroyTerrain(true);
+            for (int i = 0; i < preparedDebris.Count; i++)
+            {
+                if (preparedDebris[i] != null)
+                {
+                    preparedDebris[i].SetActive(true);
+                    preparedDebris[i]
+                        .GetComponent<DebrisProjectile>()
+                        ?.Launch();
+                }
+            }
+
+            preparedDebris.Clear();
+            terrainSegmentRenderers.Clear();
+            return true;
+        }
+
+        private void CreateDebris(
+            int debrisIndex,
+            SpriteRenderer sourceRenderer,
+            Vector2 velocity)
+        {
+            GameObject debrisObject = new GameObject(
+                $"TerrainCollapse_Debris_{debrisIndex + 1}");
+            preparedDebris.Add(debrisObject);
+            debrisObject.SetActive(false);
+            debrisObject.transform.position =
+                sourceRenderer.transform.position;
+            debrisObject.transform.localScale =
+                new Vector3(DebrisScale, DebrisScale, 1f);
+
+            SpriteRenderer renderer =
+                debrisObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = sourceRenderer.sprite;
+            renderer.color = sourceRenderer.color;
+            renderer.sortingOrder = DebrisSortingOrder;
+
+            debrisObject.AddComponent<BoxCollider2D>().size =
+                Vector2.one;
+            debrisObject.AddComponent<Rigidbody2D>();
+            DebrisProjectile debris =
+                debrisObject.AddComponent<DebrisProjectile>();
+            debris.Initialize(velocity, bossDamageable);
+        }
+
+        private void IgnorePreparedDebrisCollisions()
+        {
+            for (int i = 0; i < preparedDebris.Count; i++)
+            {
+                Collider2D first = preparedDebris[i] != null
+                    ? preparedDebris[i].GetComponent<Collider2D>()
+                    : null;
+                if (first == null)
+                {
+                    continue;
+                }
+
+                for (int j = i + 1;
+                     j < preparedDebris.Count;
+                     j++)
+                {
+                    Collider2D second = preparedDebris[j] != null
+                        ? preparedDebris[j].GetComponent<Collider2D>()
+                        : null;
+                    if (second != null)
+                    {
+                        Physics2D.IgnoreCollision(
+                            first,
+                            second,
+                            true);
+                    }
+                }
+            }
+        }
+
+        private void CleanupPreparedDebris()
+        {
+            for (int i = 0; i < preparedDebris.Count; i++)
+            {
+                if (preparedDebris[i] != null)
+                {
+                    Destroy(preparedDebris[i]);
+                }
+            }
+
+            preparedDebris.Clear();
+            terrainSegmentRenderers.Clear();
+        }
+
+        private static int GetEvenlySpacedIndex(
+            int index,
+            int outputCount,
+            int sourceCount)
+        {
+            if (outputCount <= 1 || sourceCount <= 1)
+            {
+                return 0;
+            }
+
+            return Mathf.RoundToInt(
+                index * (sourceCount - 1f) /
+                (outputCount - 1f));
+        }
+
+        private static float GetDebrisAngle(
+            int index,
+            int debrisCount)
+        {
+            if (debrisCount <= 1)
+            {
+                return 86f;
+            }
+
+            int angleIndex = GetEvenlySpacedIndex(
+                index,
+                debrisCount,
+                DebrisAngles.Length);
+            return DebrisAngles[angleIndex];
         }
 
         private bool IsStillRegistered(TerrainEntity target)
