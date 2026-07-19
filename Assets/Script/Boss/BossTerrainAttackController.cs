@@ -18,8 +18,6 @@ namespace FinalGame.Boss
 
         [Header("Placement and Prediction")]
         [SerializeField, Min(0f)] private float shieldVerticalOffset = 5f;
-        [SerializeField, Min(0f)] private float wallSpawnHeight = 10f;
-        [SerializeField, Min(0f)] private float spikeSpawnHeight = 11f;
         [SerializeField, Range(0f, 2f)] private float wallPredictionTime = 0.5f;
         [SerializeField, Range(0f, 2f)] private float spikePredictionTime = 0.42f;
         [SerializeField, Min(0f)] private float maximumPredictionDistance = 8f;
@@ -117,14 +115,18 @@ namespace FinalGame.Boss
                 case BossAttackType.FallingStoneWall:
                     terrainType = TerrainType.FallingStoneWall;
                     referencePoint = PredictPlayerPosition(wallPredictionTime);
-                    requestedPosition = referencePoint + Vector2.up * wallSpawnHeight;
+                    requestedPosition = GetRandomFallingSpawnPosition(
+                        terrainType,
+                        referencePoint);
                     telegraphDuration = wallTelegraphDuration;
                     break;
 
                 case BossAttackType.FallingStoneSpike:
                     terrainType = TerrainType.FallingStoneSpike;
                     referencePoint = PredictPlayerPosition(spikePredictionTime);
-                    requestedPosition = referencePoint + Vector2.up * spikeSpawnHeight;
+                    requestedPosition = GetRandomFallingSpawnPosition(
+                        terrainType,
+                        referencePoint);
                     telegraphDuration = spikeTelegraphDuration;
                     break;
 
@@ -170,20 +172,17 @@ namespace FinalGame.Boss
 
             TerrainType terrainType;
             float predictionTime;
-            float spawnHeight;
 
             switch (plan.AttackType)
             {
                 case BossAttackType.FallingStoneWall:
                     terrainType = TerrainType.FallingStoneWall;
                     predictionTime = wallPredictionTime;
-                    spawnHeight = wallSpawnHeight;
                     break;
 
                 case BossAttackType.FallingStoneSpike:
                     terrainType = TerrainType.FallingStoneSpike;
                     predictionTime = spikePredictionTime;
-                    spawnHeight = spikeSpawnHeight;
                     break;
 
                 case BossAttackType.TerrainCollapse:
@@ -195,9 +194,11 @@ namespace FinalGame.Boss
             }
 
             Vector2 referencePoint = PredictPlayerPosition(predictionTime);
-            Vector2 requestedPosition = ClampToArena(
+            // 2026-07-19：预警期间只继续追踪 X，Y 使用本次攻击抽到的高度。
+            Vector2 requestedPosition = ClampFallingSpawnAtHeight(
                 terrainType,
-                referencePoint + Vector2.up * spawnHeight);
+                referencePoint.x,
+                plan.SpawnPosition.y);
 
             if (!TryFindValidPosition(terrainType, requestedPosition, out Vector2 validPosition))
             {
@@ -345,6 +346,103 @@ namespace FinalGame.Boss
                 velocity * Mathf.Max(0f, leadTime),
                 maximumPredictionDistance);
             return (Vector2)player.position + offset;
+        }
+
+        private Vector2 GetRandomFallingSpawnPosition(
+            TerrainType terrainType,
+            Vector2 referencePoint)
+        {
+            // 2026-07-19：每次攻击只抽一次高度，范围按场地和物体大小计算。
+            Rect arena = creationService.ArenaBounds;
+            Vector2 extents =
+                creationService.GetTerrainWorldSize(terrainType) * 0.5f;
+
+            // 物体中心要留在场内，并且尽量生成在玩家上方。
+            float requestedX = Mathf.Clamp(
+                referencePoint.x,
+                arena.xMin + extents.x,
+                arena.xMax - extents.x);
+            float minimumY = Mathf.Max(
+                arena.yMin + extents.y,
+                referencePoint.y + extents.y);
+            float maximumY = arena.yMax - extents.y;
+
+            float maximumDistance = creationService.MaximumCreationDistance;
+            if (maximumDistance > 0f)
+            {
+                // Boss 的创建距离是圆形范围，X 越远时可用的 Y 就越少。
+                float safeDistance = Mathf.Max(
+                    0f,
+                    maximumDistance - creationService.GridSize);
+                requestedX = Mathf.Clamp(
+                    requestedX,
+                    bossTransform.position.x - safeDistance,
+                    bossTransform.position.x + safeDistance);
+
+                float horizontalDistance =
+                    requestedX - bossTransform.position.x;
+                float verticalReach = Mathf.Sqrt(Mathf.Max(
+                    0f,
+                    safeDistance * safeDistance -
+                    horizontalDistance * horizontalDistance));
+                minimumY = Mathf.Max(
+                    minimumY,
+                    bossTransform.position.y - verticalReach);
+                maximumY = Mathf.Min(
+                    maximumY,
+                    bossTransform.position.y + verticalReach);
+            }
+
+            // 没有完整随机区间时就用最高合法点，后面仍会走放置验证。
+            float randomY = maximumY > minimumY
+                ? Random.Range(minimumY, maximumY)
+                : maximumY;
+
+            return ClampFallingSpawnAtHeight(
+                terrainType,
+                requestedX,
+                randomY);
+        }
+
+        private Vector2 ClampFallingSpawnAtHeight(
+            TerrainType terrainType,
+            float requestedX,
+            float spawnY)
+        {
+            // Y 已经确定后，只限制 X 的追踪范围，不重新抽高度。
+            Rect arena = creationService.ArenaBounds;
+            Vector2 extents =
+                creationService.GetTerrainWorldSize(terrainType) * 0.5f;
+            float clampedY = Mathf.Clamp(
+                spawnY,
+                arena.yMin + extents.y,
+                arena.yMax - extents.y);
+            float minimumX = arena.xMin + extents.x;
+            float maximumX = arena.xMax - extents.x;
+
+            float maximumDistance = creationService.MaximumCreationDistance;
+            if (maximumDistance > 0f)
+            {
+                float safeDistance = Mathf.Max(
+                    0f,
+                    maximumDistance - creationService.GridSize);
+                float verticalDistance =
+                    clampedY - bossTransform.position.y;
+                float horizontalReach = Mathf.Sqrt(Mathf.Max(
+                    0f,
+                    safeDistance * safeDistance -
+                    verticalDistance * verticalDistance));
+                minimumX = Mathf.Max(
+                    minimumX,
+                    bossTransform.position.x - horizontalReach);
+                maximumX = Mathf.Min(
+                    maximumX,
+                    bossTransform.position.x + horizontalReach);
+            }
+
+            return new Vector2(
+                Mathf.Clamp(requestedX, minimumX, maximumX),
+                clampedY);
         }
 
         private Vector2 FindLandingPosition(Vector2 spawnPosition)
