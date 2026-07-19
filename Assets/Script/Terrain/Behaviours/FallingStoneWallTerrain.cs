@@ -204,7 +204,16 @@ namespace Challenge2.TerrainPrototype
                     sourceCollider.usedByEffector;
                 segmentCollider.usedByComposite =
                     sourceCollider.usedByComposite;
-                segmentCollider.density = sourceCollider.density;
+
+                Rigidbody2D attachedBody =
+                    segmentCollider.attachedRigidbody;
+                if (attachedBody != null &&
+                    attachedBody.bodyType == RigidbodyType2D.Dynamic &&
+                    attachedBody.useAutoMass)
+                {
+                    segmentCollider.density = sourceCollider.density;
+                }
+
                 segmentCollider.edgeRadius =
                     sourceCollider.edgeRadius;
 

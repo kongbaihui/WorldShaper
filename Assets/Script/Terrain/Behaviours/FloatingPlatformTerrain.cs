@@ -151,7 +151,6 @@ namespace Challenge2.TerrainPrototype
                     sourceCollider.usedByEffector;
                 segmentCollider.usedByComposite =
                     sourceCollider.usedByComposite;
-                segmentCollider.density = sourceCollider.density;
                 segmentCollider.edgeRadius =
                     sourceCollider.edgeRadius;
 
