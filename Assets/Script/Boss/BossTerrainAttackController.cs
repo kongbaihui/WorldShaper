@@ -103,8 +103,14 @@ namespace FinalGame.Boss
                 case BossAttackType.FloatingPlatformShield:
                     terrainType = TerrainType.FloatingPlatform;
                     referencePoint = player.position;
-                    requestedPosition = Vector2.Lerp(bossTransform.position, player.position, 0.45f) +
-                                        Vector2.up * shieldVerticalOffset;
+                    float horizontalOffset = Random.Range(-8f, 8f);
+                    if (Mathf.Abs(horizontalOffset) < 2f)
+                    {
+                        horizontalOffset = Random.Range(-8f, 8f);
+                    }
+                    requestedPosition = referencePoint +
+                                        new Vector2(horizontalOffset,
+                                            Random.Range(shieldVerticalOffset - 2.5f, shieldVerticalOffset + 1.5f));
                     telegraphDuration = floatingPlatformTelegraphDuration;
                     break;
 
