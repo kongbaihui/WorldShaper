@@ -178,7 +178,12 @@ public class heroscrip : MonoBehaviour
                 continue;
             }
 
-            TerrainEntity terrain = hit.collider.GetComponentInParent<TerrainEntity>();
+            // 断裂后的墙段已经离开根节点，要从段组件找到原地形。
+            TerrainSegment segment =
+                hit.collider.GetComponentInParent<TerrainSegment>();
+            TerrainEntity terrain = segment != null
+                ? segment.ParentTerrain
+                : hit.collider.GetComponentInParent<TerrainEntity>();
             if (terrain == null)
             {
                 if (hit.collider.gameObject.layer == groundLayer)
@@ -194,7 +199,8 @@ public class heroscrip : MonoBehaviour
                 return true;
             }
 
-            if (terrain.TerrainType == TerrainType.FallingStoneWall && IsStableWall(terrain))
+            if (terrain.TerrainType == TerrainType.FallingStoneWall &&
+                IsStableWall(terrain, hit.collider.attachedRigidbody))
             {
                 return true;
             }
@@ -203,9 +209,13 @@ public class heroscrip : MonoBehaviour
         return false;
     }
 
-    private bool IsStableWall(TerrainEntity terrain)
+    private bool IsStableWall(
+        TerrainEntity terrain,
+        Rigidbody2D contactedBody)
     {
-        Rigidbody2D wallBody = terrain.GetComponent<Rigidbody2D>();
+        Rigidbody2D wallBody = contactedBody != null
+            ? contactedBody
+            : terrain.GetComponent<Rigidbody2D>();
         if (wallBody == null || !wallBody.simulated || wallBody.bodyType != RigidbodyType2D.Dynamic)
         {
             return true;

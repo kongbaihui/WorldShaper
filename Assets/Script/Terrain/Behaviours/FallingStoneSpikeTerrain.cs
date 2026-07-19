@@ -21,7 +21,12 @@ namespace Challenge2.TerrainPrototype
                 target.TryApplyDamage(_spikeDamage, Owner, Creator);
             }
 
-            TerrainEntity terrainTarget = collision.collider.GetComponentInParent<TerrainEntity>();
+            // 石墙断开后不再是根节点的子物体，从段组件取回原石墙。
+            TerrainSegment segmentTarget =
+                collision.collider.GetComponentInParent<TerrainSegment>();
+            TerrainEntity terrainTarget = segmentTarget != null
+                ? segmentTarget.ParentTerrain
+                : collision.collider.GetComponentInParent<TerrainEntity>();
             if (terrainTarget != null && terrainTarget != this &&
                 terrainTarget.Owner != TerrainOwner.Neutral)
             {
