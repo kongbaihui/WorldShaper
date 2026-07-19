@@ -33,6 +33,7 @@ public class heroscrip : MonoBehaviour
     [SerializeField, Min(0f)] private float stableWallAngularSpeed = 2f;
 
     private readonly RaycastHit2D[] groundHits = new RaycastHit2D[8];
+    private bool canDropThroughCurrentSurface;
 
     //添加的内容
     private PlayerTerrainController terrainController;
@@ -134,7 +135,8 @@ public class heroscrip : MonoBehaviour
                 if (Keyboard.current.spaceKey.wasPressedThisFrame)
                 {
                     //if not on the ground
-                    if (!HeroPhysics.IsTouchingLayers(1 << LayerMask.NameToLayer("Ground")))
+                    if (canDropThroughCurrentSurface &&
+                        !HeroPhysics.IsTouchingLayers(1 << LayerMask.NameToLayer("Ground")))
                     {
                         //enable trigger when tab s + space
                         SelfColli.isTrigger = true;
@@ -154,6 +156,8 @@ public class heroscrip : MonoBehaviour
     //return whether on the ground
     private bool OnTheGround()
     {
+        canDropThroughCurrentSurface = false;
+
         if (SelfColli == null)
         {
             return false;
@@ -196,6 +200,7 @@ public class heroscrip : MonoBehaviour
 
             if (terrain.TerrainType == TerrainType.FloatingPlatform)
             {
+                canDropThroughCurrentSurface = true;
                 return true;
             }
 
