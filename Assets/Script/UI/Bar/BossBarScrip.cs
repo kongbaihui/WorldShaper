@@ -37,6 +37,10 @@ public class BossBarScrip : MonoBehaviour
         TempSacle.y = transform.localScale.y;
         TempSacle.z = transform.localScale.z;
         transform.localScale = TempSacle;
+        if (BarRate == 0)
+        {
+            WinLoseChange.JumpToEnd(true);
+        }
     }
 
     private void HandleHealthChanged(int currentHealth, int maximumHealth)

@@ -15,7 +15,7 @@ namespace Challenge2.TerrainPrototype
         [SerializeField] private SpriteRenderer _spriteRenderer;
         [SerializeField] private Color _damageFlashColor = Color.white;
 
-        private int _currentHealth;
+        private int _currentHealth = 50;
         private Color _baseColor;
         private Coroutine _flashRoutine;
 
