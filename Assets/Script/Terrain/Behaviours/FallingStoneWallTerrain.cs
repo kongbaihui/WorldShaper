@@ -13,6 +13,8 @@ namespace Challenge2.TerrainPrototype
         [SerializeField, Min(0)] private int _impactDamage = 10;
         [SerializeField, Min(0f)] private float _impactSpeedThreshold = 4.5f;
         [SerializeField, Min(0.05f)] private float _perTargetCooldown = 0.75f;
+        [Tooltip("开启后，石墙碰到地面、平台或石墙后不再造成撞击伤害。")]
+        [SerializeField] private bool _disableImpactDamageAfterLanding = true;
 
         private readonly Dictionary<int, float> _nextDamageTimeByTarget = new Dictionary<int, float>();
         private readonly GameObject[] _segmentObjects =
@@ -27,6 +29,7 @@ namespace Challenge2.TerrainPrototype
         private Rigidbody2D _rootBody;
         private Rigidbody2D _followBody;
         private bool _hasBrokenApart;
+        private bool _impactDamageEnabled = true;
 
         public TerrainEntity TerrainEntity => this;
 
@@ -419,7 +422,20 @@ namespace Challenge2.TerrainPrototype
 
         internal void HandleBodyCollision(Collision2D collision)
         {
-            if (IsBeingDestroyed || collision.relativeVelocity.magnitude < _impactSpeedThreshold)
+            if (IsBeingDestroyed)
+            {
+                return;
+            }
+
+            // 2026-07-19：落到支撑物后，这面墙后面只保留普通碰撞。
+            if (_disableImpactDamageAfterLanding &&
+                IsLandingSurface(collision.collider))
+            {
+                _impactDamageEnabled = false;
+            }
+
+            if (!_impactDamageEnabled ||
+                collision.relativeVelocity.magnitude < _impactSpeedThreshold)
             {
                 return;
             }
@@ -440,6 +456,31 @@ namespace Challenge2.TerrainPrototype
             {
                 _nextDamageTimeByTarget[targetId] = Time.time + _perTargetCooldown;
             }
+        }
+
+        private static bool IsLandingSurface(Collider2D collider)
+        {
+            if (collider == null)
+            {
+                return false;
+            }
+
+            int groundLayer = LayerMask.NameToLayer("Ground");
+            if (groundLayer >= 0 && collider.gameObject.layer == groundLayer)
+            {
+                return true;
+            }
+
+            // 分段地形不一定还挂在父节点下面，要从 TerrainSegment 找回去。
+            TerrainSegment segment =
+                collider.GetComponentInParent<TerrainSegment>();
+            TerrainEntity terrain = segment != null
+                ? segment.ParentTerrain
+                : collider.GetComponentInParent<TerrainEntity>();
+
+            return terrain != null &&
+                   (terrain.TerrainType == TerrainType.FloatingPlatform ||
+                    terrain.TerrainType == TerrainType.FallingStoneWall);
         }
 
         protected override void OnDestroy()
