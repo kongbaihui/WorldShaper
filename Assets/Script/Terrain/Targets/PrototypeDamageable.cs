@@ -9,7 +9,7 @@ namespace Challenge2.TerrainPrototype
     {
         [Header("Identity")]
         [SerializeField] private TerrainOwner _owner;
-        [SerializeField, Min(1)] private int _maximumHealth = 100;
+        [SerializeField, Min(1)] private int _maximumHealth;
 
         [Header("Presentation")]
         [SerializeField] private SpriteRenderer _spriteRenderer;
