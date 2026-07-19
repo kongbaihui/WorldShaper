@@ -38,15 +38,32 @@ public class bulletscrip : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        TerrainEntity terrain = collision.GetComponentInParent<TerrainEntity>();
+        TerrainSegment segment =
+            collision.GetComponentInParent<TerrainSegment>();
+        TerrainEntity terrain = segment != null
+            ? segment.ParentTerrain
+            : collision.GetComponentInParent<TerrainEntity>();
+        if (segment == null && terrain is ITerrainSegmentHost)
+        {
+            return;
+        }
+
         if (terrain != null && damagedTerrainIds.Add(terrain.GetInstanceID()))
         {
             Transform attacker = attackerTransform != null ? attackerTransform : transform;
-            if (terrainDamageService != null && terrainDamageService.TryDamageTerrain(
-                    terrain,
-                    terrainDamage,
-                    TerrainOwner.Player,
-                    attacker))
+            bool damageApplied = terrainDamageService != null &&
+                (segment != null
+                    ? terrainDamageService.TryDamageTerrain(
+                        segment,
+                        terrainDamage,
+                        TerrainOwner.Player,
+                        attacker)
+                    : terrainDamageService.TryDamageTerrain(
+                        terrain,
+                        terrainDamage,
+                        TerrainOwner.Player,
+                        attacker));
+            if (damageApplied)
             {
                 Destroy(gameObject);
                 return;

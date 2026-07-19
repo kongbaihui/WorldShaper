@@ -49,21 +49,46 @@ namespace Challenge2.TerrainPrototype
 
             Collider2D[] overlaps = Physics2D.OverlapCircleAll(worldPosition, _cursorQueryRadius);
             TerrainEntity nearestTerrain = null;
+            TerrainSegment nearestSegment = null;
+            Collider2D nearestCollider = null;
             float nearestSquaredDistance = float.MaxValue;
             for (int i = 0; i < overlaps.Length; i++)
             {
                 Collider2D overlap = overlaps[i];
-                TerrainEntity terrain = overlap != null ? overlap.GetComponentInParent<TerrainEntity>() : null;
-                if (terrain == null || terrain.IsBeingDestroyed || terrain.PrimaryCollider == null)
+                TerrainSegment segment = overlap != null
+                    ? overlap.GetComponentInParent<TerrainSegment>()
+                    : null;
+                TerrainEntity terrain = segment != null
+                    ? segment.ParentTerrain
+                    : overlap != null
+                        ? overlap.GetComponentInParent<TerrainEntity>()
+                        : null;
+                Collider2D targetCollider = segment != null
+                    ? segment.SegmentCollider
+                    : terrain != null
+                        ? terrain.PrimaryCollider
+                        : null;
+
+                if (terrain == null ||
+                    terrain.IsBeingDestroyed ||
+                    targetCollider == null ||
+                    !targetCollider.enabled ||
+                    (segment == null &&
+                     targetCollider.isTrigger &&
+                     terrain is ITerrainSegmentHost))
                 {
                     continue;
                 }
 
-                float squaredDistance = ((Vector2)terrain.PrimaryCollider.ClosestPoint(worldPosition) - worldPosition).sqrMagnitude;
+                float squaredDistance =
+                    ((Vector2)targetCollider.ClosestPoint(worldPosition) -
+                     worldPosition).sqrMagnitude;
                 if (squaredDistance < nearestSquaredDistance)
                 {
                     nearestSquaredDistance = squaredDistance;
                     nearestTerrain = terrain;
+                    nearestSegment = segment;
+                    nearestCollider = targetCollider;
                 }
             }
 
@@ -72,10 +97,20 @@ namespace Challenge2.TerrainPrototype
                 return ReportFailure("No destructible terrain at cursor");
             }
 
-            Vector2 closestPointToAttacker = nearestTerrain.PrimaryCollider.ClosestPoint(attackerTransform.position);
+            Vector2 closestPointToAttacker =
+                nearestCollider.ClosestPoint(attackerTransform.position);
             if (Vector2.Distance(attackerTransform.position, closestPointToAttacker) > _interactionRange)
             {
                 return ReportFailure("Target out of range");
+            }
+
+            if (nearestSegment != null)
+            {
+                return TryDamageTerrain(
+                    nearestSegment,
+                    _terrainDamagePerClick,
+                    attacker,
+                    attackerTransform);
             }
 
             return TryDamageTerrain(
@@ -107,6 +142,52 @@ namespace Challenge2.TerrainPrototype
             LastMessage = terrain.CurrentHealth > 0
                 ? $"Damaged {terrain.TerrainType}: {terrain.CurrentHealth}/{terrain.MaximumHealth} HP"
                 : $"Destroyed {terrain.TerrainType}";
+            MessageChanged?.Invoke(LastMessage);
+            return true;
+        }
+
+        public bool TryDamageTerrain(
+            TerrainSegment segment,
+            int damage,
+            TerrainOwner attacker,
+            Transform attackerTransform)
+        {
+            TerrainEntity terrain =
+                segment != null ? segment.ParentTerrain : null;
+            if (terrain == null || terrain.IsBeingDestroyed)
+            {
+                return ReportFailure("Terrain segment cannot be damaged");
+            }
+
+            int segmentIndex = segment.SegmentIndex;
+            if (!segment.TryApplyDamage(
+                    Mathf.Max(1, damage),
+                    attacker,
+                    attackerTransform != null
+                        ? attackerTransform
+                        : _playerCreator))
+            {
+                return ReportFailure("Terrain segment cannot be damaged");
+            }
+
+            if (terrain.IsBeingDestroyed)
+            {
+                LastMessage = $"Destroyed {terrain.TerrainType}";
+            }
+            else if (segment.CurrentHealth > 0)
+            {
+                LastMessage =
+                    $"Damaged {terrain.TerrainType} segment " +
+                    $"{segmentIndex + 1}: " +
+                    $"{segment.CurrentHealth}/{terrain.MaximumHealth} HP";
+            }
+            else
+            {
+                LastMessage =
+                    $"Destroyed {terrain.TerrainType} segment " +
+                    $"{segmentIndex + 1}";
+            }
+
             MessageChanged?.Invoke(LastMessage);
             return true;
         }

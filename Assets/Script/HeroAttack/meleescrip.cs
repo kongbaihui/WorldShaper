@@ -72,14 +72,34 @@ public class meleescrip : MonoBehaviour
     private void TryDamage(Collider2D collision)
     {
         Transform attacker = TheHero != null ? TheHero.transform : transform;
-        TerrainEntity terrain = collision.GetComponentInParent<TerrainEntity>();
+        TerrainSegment segment =
+            collision.GetComponentInParent<TerrainSegment>();
+        TerrainEntity terrain = segment != null
+            ? segment.ParentTerrain
+            : collision.GetComponentInParent<TerrainEntity>();
+        if (segment == null && terrain is ITerrainSegmentHost)
+        {
+            return;
+        }
+
         if (terrain != null && damagedTerrain.Add(terrain) && terrainDamageService != null)
         {
-            terrainDamageService.TryDamageTerrain(
-                terrain,
-                terrainDamage,
-                TerrainOwner.Player,
-                attacker);
+            if (segment != null)
+            {
+                terrainDamageService.TryDamageTerrain(
+                    segment,
+                    terrainDamage,
+                    TerrainOwner.Player,
+                    attacker);
+            }
+            else
+            {
+                terrainDamageService.TryDamageTerrain(
+                    terrain,
+                    terrainDamage,
+                    TerrainOwner.Player,
+                    attacker);
+            }
         }
 
         PrototypeDamageable target = collision.GetComponentInParent<PrototypeDamageable>();
