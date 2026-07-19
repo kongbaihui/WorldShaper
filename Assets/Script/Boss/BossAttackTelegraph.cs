@@ -22,6 +22,10 @@ namespace FinalGame.Boss
 
         private readonly List<SpriteRenderer> markers = new List<SpriteRenderer>(4);
         private readonly List<Color> markerColors = new List<Color>(4);
+        private readonly List<SpriteRenderer> collapseSegmentBuffer =
+            new List<SpriteRenderer>(10);
+        private readonly List<CollapseSegmentColor> collapseSegmentColors =
+            new List<CollapseSegmentColor>(10);
         private Texture2D markerTexture;
         private Sprite markerSprite;
         private SpriteRenderer spawnMarker;
@@ -29,6 +33,7 @@ namespace FinalGame.Boss
         private SpriteRenderer landingMarker;
         private SpriteRenderer collapseMarker;
         private TerrainEntity collapseTarget;
+        private FallingStoneWallTerrain collapseWallTarget;
 
         private void Awake()
         {
@@ -50,6 +55,8 @@ namespace FinalGame.Boss
                 color.a *= pulse;
                 marker.color = color;
             }
+
+            UpdateCollapseSegments(pulse);
 
             if (collapseMarker != null && collapseTarget != null && !collapseTarget.IsBeingDestroyed)
             {
@@ -114,7 +121,13 @@ namespace FinalGame.Boss
 
                 case BossAttackType.TerrainCollapse:
                     collapseTarget = plan.CollapseTarget;
-                    if (collapseTarget != null)
+                    collapseWallTarget =
+                        collapseTarget as FallingStoneWallTerrain;
+                    if (collapseWallTarget != null)
+                    {
+                        UpdateCollapseSegments(1f);
+                    }
+                    else if (collapseTarget != null)
                     {
                         collapseMarker = CreateMarker(
                             "Telegraph_CollapseTarget",
@@ -151,6 +164,8 @@ namespace FinalGame.Boss
 
         public void Clear()
         {
+            RestoreCollapseSegmentColors();
+
             for (int i = 0; i < markers.Count; i++)
             {
                 if (markers[i] != null)
@@ -166,6 +181,7 @@ namespace FinalGame.Boss
             landingMarker = null;
             collapseMarker = null;
             collapseTarget = null;
+            collapseWallTarget = null;
         }
 
         public bool OwnsTransform(Transform candidate)
@@ -284,6 +300,114 @@ namespace FinalGame.Boss
             SetMarker(collapseMarker, target.transform.position, GetCollapseWorldSize(target));
         }
 
+        private void UpdateCollapseSegments(float pulse)
+        {
+            if (collapseWallTarget == null ||
+                collapseWallTarget.IsBeingDestroyed)
+            {
+                RemoveDestroyedCollapseSegments();
+                return;
+            }
+
+            collapseWallTarget.CopyActiveSegmentRenderers(
+                collapseSegmentBuffer);
+
+            for (int i = collapseSegmentColors.Count - 1; i >= 0; i--)
+            {
+                SpriteRenderer renderer =
+                    collapseSegmentColors[i].Renderer;
+                if (renderer == null ||
+                    !collapseSegmentBuffer.Contains(renderer))
+                {
+                    collapseSegmentColors.RemoveAt(i);
+                }
+            }
+
+            for (int i = 0; i < collapseSegmentBuffer.Count; i++)
+            {
+                SpriteRenderer renderer = collapseSegmentBuffer[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                int colorIndex = FindCollapseSegmentColor(renderer);
+                Color originalColor;
+                if (colorIndex >= 0)
+                {
+                    originalColor =
+                        collapseSegmentColors[colorIndex].OriginalColor;
+                }
+                else
+                {
+                    originalColor = renderer.color;
+                    collapseSegmentColors.Add(
+                        new CollapseSegmentColor(
+                            renderer,
+                            originalColor));
+                }
+
+                Color warningColor = collapseColor;
+                warningColor.a = originalColor.a;
+                renderer.color = Color.Lerp(
+                    originalColor,
+                    warningColor,
+                    Mathf.Clamp01(pulse * collapseColor.a));
+            }
+        }
+
+        private void RestoreCollapseSegmentColors()
+        {
+            collapseSegmentBuffer.Clear();
+            if (collapseWallTarget != null &&
+                !collapseWallTarget.IsBeingDestroyed)
+            {
+                collapseWallTarget.CopyActiveSegmentRenderers(
+                    collapseSegmentBuffer);
+            }
+
+            for (int i = 0; i < collapseSegmentColors.Count; i++)
+            {
+                CollapseSegmentColor segmentColor =
+                    collapseSegmentColors[i];
+                if (segmentColor.Renderer != null &&
+                    collapseSegmentBuffer.Contains(
+                        segmentColor.Renderer))
+                {
+                    segmentColor.Renderer.color =
+                        segmentColor.OriginalColor;
+                }
+            }
+
+            collapseSegmentColors.Clear();
+            collapseSegmentBuffer.Clear();
+        }
+
+        private void RemoveDestroyedCollapseSegments()
+        {
+            for (int i = collapseSegmentColors.Count - 1; i >= 0; i--)
+            {
+                if (collapseSegmentColors[i].Renderer == null)
+                {
+                    collapseSegmentColors.RemoveAt(i);
+                }
+            }
+        }
+
+        private int FindCollapseSegmentColor(
+            SpriteRenderer renderer)
+        {
+            for (int i = 0; i < collapseSegmentColors.Count; i++)
+            {
+                if (collapseSegmentColors[i].Renderer == renderer)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
         private static Vector2 GetCollapseWorldSize(TerrainEntity target)
         {
             if (target.PrimaryCollider != null)
@@ -332,6 +456,20 @@ namespace FinalGame.Boss
         private static float SafeDivide(float value, float divisor)
         {
             return Mathf.Abs(divisor) > 0.0001f ? value / divisor : value;
+        }
+
+        private readonly struct CollapseSegmentColor
+        {
+            public readonly SpriteRenderer Renderer;
+            public readonly Color OriginalColor;
+
+            public CollapseSegmentColor(
+                SpriteRenderer renderer,
+                Color originalColor)
+            {
+                Renderer = renderer;
+                OriginalColor = originalColor;
+            }
         }
     }
 }

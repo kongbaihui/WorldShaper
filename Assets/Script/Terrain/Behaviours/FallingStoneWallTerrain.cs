@@ -19,6 +19,8 @@ namespace Challenge2.TerrainPrototype
         private readonly Dictionary<int, float> _nextDamageTimeByTarget = new Dictionary<int, float>();
         private readonly GameObject[] _segmentObjects =
             new GameObject[SegmentCount];
+        private readonly SpriteRenderer[] _segmentRenderers =
+            new SpriteRenderer[SegmentCount];
         private readonly int[] _segmentHealth =
             new int[SegmentCount];
         // 断开后生成的刚体都记在这里，石墙销毁时一起清掉。
@@ -58,6 +60,33 @@ namespace Challenge2.TerrainPrototype
             return IsValidSegment(segmentIndex)
                 ? _segmentHealth[segmentIndex]
                 : 0;
+        }
+
+        public void CopyActiveSegmentRenderers(
+            List<SpriteRenderer> results)
+        {
+            if (results == null)
+            {
+                return;
+            }
+
+            results.Clear();
+            if (IsBeingDestroyed)
+            {
+                return;
+            }
+
+            for (int i = 0; i < SegmentCount; i++)
+            {
+                if (_segmentObjects[i] == null ||
+                    _segmentHealth[i] <= 0 ||
+                    _segmentRenderers[i] == null)
+                {
+                    continue;
+                }
+
+                results.Add(_segmentRenderers[i]);
+            }
         }
 
         public bool TryApplySegmentDamage(
@@ -213,6 +242,7 @@ namespace Challenge2.TerrainPrototype
                     segmentRenderer);
 
                 _segmentObjects[i] = segmentObject;
+                _segmentRenderers[i] = segmentRenderer;
                 _segmentHealth[i] = MaximumHealth;
             }
 
@@ -230,6 +260,7 @@ namespace Challenge2.TerrainPrototype
             if (segmentObject != null)
             {
                 _segmentObjects[segmentIndex] = null;
+                _segmentRenderers[segmentIndex] = null;
                 _activeSegmentCount--;
                 segmentObject.SetActive(false);
                 Destroy(segmentObject);
