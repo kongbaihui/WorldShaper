@@ -15,6 +15,7 @@ namespace Challenge2.TerrainPrototype
             Transform attackerTransform);
     }
 
+    // 2026-07-19：子段只记录命中了哪一块，销毁还是交给父地形处理。
     public sealed class TerrainSegment : MonoBehaviour
     {
         private ITerrainSegmentHost _host;

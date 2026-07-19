@@ -54,6 +54,7 @@ namespace Challenge2.TerrainPrototype
             float nearestSquaredDistance = float.MaxValue;
             for (int i = 0; i < overlaps.Length; i++)
             {
+                // 2026-07-19：有分段时优先取具体分段，旧地形仍走原来的逻辑。
                 Collider2D overlap = overlaps[i];
                 TerrainSegment segment = overlap != null
                     ? overlap.GetComponentInParent<TerrainSegment>()
@@ -146,6 +147,7 @@ namespace Challenge2.TerrainPrototype
             return true;
         }
 
+        // 2026-07-19：分段伤害统一从这里转给父地形。
         public bool TryDamageTerrain(
             TerrainSegment segment,
             int damage,

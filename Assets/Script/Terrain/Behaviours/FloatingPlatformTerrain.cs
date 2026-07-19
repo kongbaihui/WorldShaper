@@ -4,6 +4,7 @@ namespace Challenge2.TerrainPrototype
 {
     public sealed class FloatingPlatformTerrain : TerrainEntity, ITerrainSegmentHost
     {
+        // 2026-07-19：平台拆成十段，图片之间稍微压一点，避免出现白缝。
         private const int SegmentCount = 10;
         private const float VisualOverlapWorldUnits = 0.015f;
 
@@ -43,6 +44,7 @@ namespace Challenge2.TerrainPrototype
                 return false;
             }
 
+            // 2026-07-19：现在命中一次就直接拆掉这一段。
             _segmentHealth[segmentIndex] = 0;
             DestroySegment(segmentIndex);
 
@@ -91,6 +93,7 @@ namespace Challenge2.TerrainPrototype
 
             for (int i = 0; i < SegmentCount; i++)
             {
+                // 每段都从同一个起点算位置，不用上一段的位置累加。
                 float centerX =
                     startX + (i + 0.5f) * segmentWidth;
 
@@ -152,9 +155,7 @@ namespace Challenge2.TerrainPrototype
             }
 
             _activeSegmentCount = SegmentCount;
-            // Keep the original bounds available to placement and Boss preview
-            // queries, but remove its physical surface. Player damage explicitly
-            // ignores this query-only trigger and resolves a child segment.
+            // 2026-07-19：根碰撞只留给范围检查，真正站立用下面十段碰撞。
             sourceCollider.isTrigger = true;
             sourceRenderer.enabled = false;
         }

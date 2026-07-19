@@ -72,6 +72,7 @@ public class meleescrip : MonoBehaviour
     private void TryDamage(Collider2D collision)
     {
         Transform attacker = TheHero != null ? TheHero.transform : transform;
+        // 2026-07-19：近战也按实际碰到的子段结算。
         TerrainSegment segment =
             collision.GetComponentInParent<TerrainSegment>();
         TerrainEntity terrain = segment != null

@@ -38,6 +38,7 @@ public class bulletscrip : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        // 2026-07-19：子弹先找命中的分段，找不到再按普通地形处理。
         TerrainSegment segment =
             collision.GetComponentInParent<TerrainSegment>();
         TerrainEntity terrain = segment != null
@@ -45,6 +46,7 @@ public class bulletscrip : MonoBehaviour
             : collision.GetComponentInParent<TerrainEntity>();
         if (segment == null && terrain is ITerrainSegmentHost)
         {
+            // 根 Trigger 只用来保留整个平台的查询范围。
             return;
         }
 
