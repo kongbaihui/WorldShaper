@@ -363,8 +363,6 @@ MonoBehaviour:
   bossTransform: {fileID: 114704688}
   bossDamageable: {fileID: 114704692}
   shieldVerticalOffset: 5
-  wallSpawnHeight: 10
-  spikeSpawnHeight: 11
   wallPredictionTime: 0.5
   spikePredictionTime: 0.42
   maximumPredictionDistance: 8
@@ -2360,7 +2358,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDrag: 0
   m_AngularDrag: 0.05
-  m_GravityScale: 3
+  m_GravityScale: 9
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -2498,7 +2496,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShootInterval: 0.2
   xSpeed: 10
-  ySpeed: 20
+  ySpeed: 50
   TheArrow: {fileID: 0}
   IsMelee: 0
   MeleeRange: 5

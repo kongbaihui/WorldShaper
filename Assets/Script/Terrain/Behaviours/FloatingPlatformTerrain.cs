@@ -152,12 +152,16 @@ namespace Challenge2.TerrainPrototype
 
                 _segmentObjects[i] = segmentObject;
                 _segmentHealth[i] = MaximumHealth;
+
+                PlatformEffector2D effector = segmentObject.AddComponent<PlatformEffector2D>();
             }
 
             _activeSegmentCount = SegmentCount;
             // 2026-07-19：根碰撞只留给范围检查，真正站立用下面十段碰撞。
             sourceCollider.isTrigger = true;
             sourceRenderer.enabled = false;
+
+
         }
 
         private void DestroySegment(int segmentIndex)
