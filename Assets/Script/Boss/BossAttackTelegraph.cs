@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Challenge2.TerrainPrototype;
 using UnityEngine;
@@ -15,8 +16,11 @@ namespace FinalGame.Boss
         [SerializeField] private Color platformColor = new Color(0.15f, 0.95f, 1f, 0.55f);
         [SerializeField] private Color wallColor = new Color(1f, 0.45f, 0.1f, 0.62f);
         [SerializeField] private Color spikeColor = new Color(1f, 0.05f, 0.05f, 0.72f);
+        [SerializeField] private Color lightWaveColor = new Color(0.25f, 0.9f, 1f, 0.82f);
         [SerializeField] private Color collapseColor = new Color(1f, 0.05f, 0.55f, 0.68f);
         [SerializeField, Min(0.05f)] private float warningLineWidth = 0.35f;
+        [SerializeField, Min(0.05f)] private float lightWaveLineWidth = 0.28f;
+        [SerializeField, Min(0.05f)] private float lightWaveImpactDuration = 0.32f;
         [SerializeField, Min(0f)] private float landingAreaPadding = 2f;
         [SerializeField] private int sortingOrder = 40;
 
@@ -32,6 +36,10 @@ namespace FinalGame.Boss
         private SpriteRenderer pathMarker;
         private SpriteRenderer landingMarker;
         private SpriteRenderer collapseMarker;
+        private LineRenderer shockwaveWarningRing;
+        private LineRenderer shockwaveImpactRing;
+        private Material ringMaterial;
+        private Coroutine shockwaveImpactRoutine;
         private TerrainEntity collapseTarget;
         private FallingStoneWallTerrain collapseWallTarget;
 
@@ -58,6 +66,14 @@ namespace FinalGame.Boss
 
             UpdateCollapseSegments(pulse);
 
+            if (shockwaveWarningRing != null)
+            {
+                Color color = lightWaveColor;
+                color.a *= pulse;
+                shockwaveWarningRing.startColor = color;
+                shockwaveWarningRing.endColor = color;
+            }
+
             if (collapseMarker != null && collapseTarget != null && !collapseTarget.IsBeingDestroyed)
             {
                 UpdateCollapseMarker(collapseTarget);
@@ -67,6 +83,7 @@ namespace FinalGame.Boss
         private void OnDisable()
         {
             Clear();
+            ClearShockwaveImpact();
         }
 
         private void OnDestroy()
@@ -80,6 +97,11 @@ namespace FinalGame.Boss
             if (markerTexture != null)
             {
                 Destroy(markerTexture);
+            }
+
+            if (ringMaterial != null)
+            {
+                Destroy(ringMaterial);
             }
         }
 
@@ -117,6 +139,15 @@ namespace FinalGame.Boss
                         plan.SpawnPosition,
                         spikeColor);
                     CreateFallingPath(plan, TerrainType.FallingStoneSpike, spikeColor);
+                    break;
+
+                case BossAttackType.CloseRangeLightWave:
+                    shockwaveWarningRing = CreateRing(
+                        "Telegraph_CloseRangeLightWave",
+                        plan.SpawnPosition,
+                        plan.AttackRadius,
+                        lightWaveLineWidth,
+                        lightWaveColor);
                     break;
 
                 case BossAttackType.TerrainCollapse:
@@ -166,6 +197,12 @@ namespace FinalGame.Boss
         {
             RestoreCollapseSegmentColors();
 
+            if (shockwaveWarningRing != null)
+            {
+                Destroy(shockwaveWarningRing.gameObject);
+                shockwaveWarningRing = null;
+            }
+
             for (int i = 0; i < markers.Count; i++)
             {
                 if (markers[i] != null)
@@ -182,6 +219,13 @@ namespace FinalGame.Boss
             collapseMarker = null;
             collapseTarget = null;
             collapseWallTarget = null;
+        }
+
+        public void PlayShockwaveImpact(Vector2 center, float radius)
+        {
+            ClearShockwaveImpact();
+            shockwaveImpactRoutine = StartCoroutine(
+                ShockwaveImpactRoutine(center, Mathf.Max(0.1f, radius)));
         }
 
         public bool OwnsTransform(Transform candidate)
@@ -287,6 +331,126 @@ namespace FinalGame.Boss
             markerColors.Add(color);
             SetMarker(renderer, position, worldScale);
             return renderer;
+        }
+
+        private IEnumerator ShockwaveImpactRoutine(Vector2 center, float radius)
+        {
+            Color impactColor = lightWaveColor;
+            impactColor.a = 1f;
+            shockwaveImpactRing = CreateRing(
+                "Impact_CloseRangeLightWave",
+                center,
+                0.1f,
+                lightWaveLineWidth * 1.7f,
+                impactColor);
+
+            float elapsed = 0f;
+            while (elapsed < lightWaveImpactDuration && shockwaveImpactRing != null)
+            {
+                elapsed += Time.deltaTime;
+                float normalized = Mathf.Clamp01(
+                    elapsed / Mathf.Max(0.05f, lightWaveImpactDuration));
+                float eased = 1f - (1f - normalized) * (1f - normalized);
+                SetRingPositions(
+                    shockwaveImpactRing,
+                    center,
+                    Mathf.Lerp(0.1f, radius, eased));
+
+                Color color = impactColor;
+                color.a = 1f - normalized;
+                shockwaveImpactRing.startColor = color;
+                shockwaveImpactRing.endColor = color;
+                yield return null;
+            }
+
+            if (shockwaveImpactRing != null)
+            {
+                Destroy(shockwaveImpactRing.gameObject);
+                shockwaveImpactRing = null;
+            }
+
+            shockwaveImpactRoutine = null;
+        }
+
+        private LineRenderer CreateRing(
+            string ringName,
+            Vector2 center,
+            float radius,
+            float width,
+            Color color)
+        {
+            EnsureRingMaterial();
+            GameObject ringObject = new GameObject(ringName);
+            ringObject.transform.SetParent(telegraphRoot, true);
+            LineRenderer renderer = ringObject.AddComponent<LineRenderer>();
+            renderer.sharedMaterial = ringMaterial;
+            renderer.useWorldSpace = true;
+            renderer.loop = true;
+            renderer.positionCount = 64;
+            renderer.widthMultiplier = Mathf.Max(0.05f, width);
+            renderer.numCornerVertices = 2;
+            renderer.numCapVertices = 2;
+            renderer.sortingOrder = sortingOrder + 1;
+            renderer.startColor = color;
+            renderer.endColor = color;
+            SetRingPositions(renderer, center, radius);
+            return renderer;
+        }
+
+        private static void SetRingPositions(
+            LineRenderer renderer,
+            Vector2 center,
+            float radius)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            int pointCount = renderer.positionCount;
+            for (int i = 0; i < pointCount; i++)
+            {
+                float angle = i * Mathf.PI * 2f / pointCount;
+                renderer.SetPosition(
+                    i,
+                    center + new Vector2(
+                        Mathf.Cos(angle),
+                        Mathf.Sin(angle)) * radius);
+            }
+        }
+
+        private void EnsureRingMaterial()
+        {
+            if (ringMaterial != null)
+            {
+                return;
+            }
+
+            Shader shader = Shader.Find("Sprites/Default");
+            if (shader == null)
+            {
+                return;
+            }
+
+            ringMaterial = new Material(shader)
+            {
+                name = "Boss Light Wave Runtime Material"
+            };
+        }
+
+        private void ClearShockwaveImpact()
+        {
+            if (shockwaveImpactRoutine != null)
+            {
+                StopCoroutine(shockwaveImpactRoutine);
+                shockwaveImpactRoutine = null;
+            }
+
+            if (shockwaveImpactRing != null)
+            {
+                Destroy(shockwaveImpactRing.gameObject);
+                shockwaveImpactRing = null;
+            }
         }
 
         private void UpdateCollapseMarker(TerrainEntity target)

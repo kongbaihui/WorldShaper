@@ -22,6 +22,7 @@ namespace FinalGame.Boss
         FloatingPlatformShield,
         FallingStoneWall,
         FallingStoneSpike,
+        CloseRangeLightWave,
         TerrainCollapse
     }
 
@@ -32,6 +33,8 @@ namespace FinalGame.Boss
         public Vector2 AttackReferencePoint;
         public Vector2 LandingPosition;
         public float TelegraphDuration;
+        public float AttackRadius;
+        public int Phase;
         public TerrainEntity CollapseTarget;
     }
 
@@ -74,6 +77,7 @@ namespace FinalGame.Boss
             BossAttackType.FloatingPlatformShield,
             BossAttackType.FallingStoneWall,
             BossAttackType.FallingStoneSpike,
+            BossAttackType.CloseRangeLightWave,
             BossAttackType.TerrainCollapse
         };
 
@@ -258,6 +262,7 @@ namespace FinalGame.Boss
             }
 
             previousAttack = selected;
+            selectedPlan.Phase = CurrentPhase;
             activeRoutine = StartCoroutine(RunAttackRoutine(selectedPlan));
         }
 
@@ -301,7 +306,9 @@ namespace FinalGame.Boss
 
         private bool IsUnlocked(BossAttackType attack)
         {
-            if (attack == BossAttackType.FallingStoneWall || attack == BossAttackType.FallingStoneSpike)
+            if (attack == BossAttackType.FallingStoneWall ||
+                attack == BossAttackType.FallingStoneSpike ||
+                attack == BossAttackType.CloseRangeLightWave)
             {
                 return CurrentPhase >= 2;
             }
@@ -320,6 +327,8 @@ namespace FinalGame.Boss
                     return 52f + (DistanceToPlayer > farDistanceThreshold ? 34f : 0f);
                 case BossAttackType.FallingStoneSpike:
                     return 48f + (Mathf.Abs(velocity.x) >= fastHorizontalSpeed ? 32f : 0f);
+                case BossAttackType.CloseRangeLightWave:
+                    return CurrentPhase >= 3 ? 122f : 108f;
                 case BossAttackType.TerrainCollapse:
                     return 92f;
                 default:

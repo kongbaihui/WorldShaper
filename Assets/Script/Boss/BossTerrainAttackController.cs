@@ -20,6 +20,7 @@ namespace FinalGame.Boss
         [SerializeField] private BossAttackTelegraph telegraph;
         [SerializeField] private Transform player;
         [SerializeField] private Rigidbody2D playerBody;
+        [SerializeField] private PrototypeDamageable playerDamageable;
         [SerializeField] private Transform bossTransform;
         [SerializeField] private PrototypeDamageable bossDamageable;
 
@@ -34,7 +35,16 @@ namespace FinalGame.Boss
         [SerializeField, Min(0f)] private float floatingPlatformTelegraphDuration = 0.8f;
         [SerializeField, Min(0f)] private float wallTelegraphDuration = 1f;
         [SerializeField, Min(0f)] private float spikeTelegraphDuration = 0.9f;
+        [SerializeField, Min(0f)] private float shockwaveTelegraphDuration = 0.55f;
         [SerializeField, Min(0f)] private float collapseTelegraphDuration = 1f;
+
+        [Header("Close Range Light Wave")]
+        [SerializeField, Min(0.1f)] private float shockwaveSelectionRange = 10f;
+        [SerializeField, Min(0.1f)] private float shockwaveRadius = 8f;
+        [SerializeField, Min(1)] private int shockwaveDamage = 18;
+        [SerializeField, Min(0)] private int phaseThreeBonusDamage = 7;
+        [SerializeField, Min(0)] private int phaseTwoPlatformSegments = 2;
+        [SerializeField, Min(0)] private int phaseThreePlatformSegments = 3;
 
         [Header("Terrain Collapse")]
         [SerializeField, Min(0.1f)] private float destructionRange = 70f;
@@ -44,6 +54,8 @@ namespace FinalGame.Boss
             new List<SpriteRenderer>(10);
         private readonly List<GameObject> preparedDebris =
             new List<GameObject>(7);
+        private readonly List<TerrainSegment> shockwaveSegmentBuffer =
+            new List<TerrainSegment>(20);
         private readonly RaycastHit2D[] raycastBuffer = new RaycastHit2D[32];
         private bool referencesReady;
 
@@ -66,7 +78,18 @@ namespace FinalGame.Boss
                 playerBody = player.GetComponent<Rigidbody2D>();
             }
 
+            if (playerDamageable == null && player != null)
+            {
+                playerDamageable = player.GetComponent<PrototypeDamageable>();
+            }
+
             referencesReady = ValidateReferences();
+        }
+
+        private void OnValidate()
+        {
+            shockwaveRadius = Mathf.Max(0.1f, shockwaveRadius);
+            shockwaveSelectionRange = Mathf.Max(shockwaveRadius, shockwaveSelectionRange);
         }
 
         private void OnDisable()
@@ -80,6 +103,27 @@ namespace FinalGame.Boss
             if (!referencesReady || bossDamageable == null || !bossDamageable.IsAlive)
             {
                 return false;
+            }
+
+            if (attackType == BossAttackType.CloseRangeLightWave)
+            {
+                if (Vector2.Distance(bossTransform.position, player.position) >
+                    shockwaveSelectionRange)
+                {
+                    return false;
+                }
+
+                Vector2 center = bossTransform.position;
+                plan = new BossAttackPlan
+                {
+                    AttackType = attackType,
+                    SpawnPosition = center,
+                    LandingPosition = center,
+                    AttackReferencePoint = player.position,
+                    TelegraphDuration = shockwaveTelegraphDuration,
+                    AttackRadius = shockwaveRadius
+                };
+                return true;
             }
 
             if (attackType == BossAttackType.TerrainCollapse)
@@ -234,6 +278,12 @@ namespace FinalGame.Boss
                 return false;
             }
 
+            if (plan.AttackType == BossAttackType.CloseRangeLightWave)
+            {
+                ExecuteCloseRangeLightWave(plan);
+                return true;
+            }
+
             if (plan.AttackType == BossAttackType.TerrainCollapse)
             {
                 TerrainEntity target = plan.CollapseTarget;
@@ -333,7 +383,8 @@ namespace FinalGame.Boss
         private bool ValidateReferences()
         {
             bool valid = creationService != null && registry != null && telegraph != null &&
-                         player != null && bossTransform != null && bossDamageable != null;
+                         player != null && playerDamageable != null &&
+                         bossTransform != null && bossDamageable != null;
             if (!valid)
             {
                 Debug.LogWarning(
@@ -342,6 +393,138 @@ namespace FinalGame.Boss
             }
 
             return valid;
+        }
+
+        private void ExecuteCloseRangeLightWave(BossAttackPlan plan)
+        {
+            Vector2 center = plan.SpawnPosition;
+            float radius = Mathf.Max(0.1f, plan.AttackRadius);
+
+            DamagePlayerWithShockwave(center, radius, plan.Phase);
+            DamagePlatformSegmentsWithShockwave(center, radius, plan.Phase);
+
+            if (telegraph != null)
+            {
+                telegraph.PlayShockwaveImpact(center, radius);
+            }
+        }
+
+        private void DamagePlayerWithShockwave(
+            Vector2 center,
+            float radius,
+            int phase)
+        {
+            if (playerDamageable == null || !playerDamageable.IsAlive)
+            {
+                return;
+            }
+
+            Collider2D playerCollider = playerDamageable.GetComponent<Collider2D>();
+            Vector2 closestPoint = playerCollider != null && playerCollider.enabled
+                ? playerCollider.ClosestPoint(center)
+                : (Vector2)playerDamageable.DamageTransform.position;
+            if ((closestPoint - center).sqrMagnitude > radius * radius)
+            {
+                return;
+            }
+
+            int damage = shockwaveDamage +
+                         (phase >= 3 ? phaseThreeBonusDamage : 0);
+            playerDamageable.TryApplyDamage(
+                Mathf.Max(1, damage),
+                TerrainOwner.Boss,
+                bossTransform);
+        }
+
+        private void DamagePlatformSegmentsWithShockwave(
+            Vector2 center,
+            float radius,
+            int phase)
+        {
+            int segmentLimit = phase >= 3
+                ? phaseThreePlatformSegments
+                : phaseTwoPlatformSegments;
+            if (segmentLimit <= 0)
+            {
+                return;
+            }
+
+            shockwaveSegmentBuffer.Clear();
+            registry.CopyActiveTerrain(terrainBuffer);
+            float radiusSquared = radius * radius;
+
+            for (int i = 0; i < terrainBuffer.Count; i++)
+            {
+                TerrainEntity terrain = terrainBuffer[i];
+                if (!(terrain is FloatingPlatformTerrain platform) ||
+                    terrain.IsBeingDestroyed ||
+                    terrain.Owner == TerrainOwner.Boss)
+                {
+                    continue;
+                }
+
+                platform.CopyActiveSegmentRenderers(terrainSegmentRenderers);
+                for (int j = 0; j < terrainSegmentRenderers.Count; j++)
+                {
+                    SpriteRenderer renderer = terrainSegmentRenderers[j];
+                    TerrainSegment segment = renderer != null
+                        ? renderer.GetComponentInParent<TerrainSegment>()
+                        : null;
+                    Collider2D segmentCollider = segment != null
+                        ? segment.SegmentCollider
+                        : null;
+                    if (segmentCollider == null ||
+                        !segmentCollider.enabled ||
+                        (segmentCollider.ClosestPoint(center) - center).sqrMagnitude >
+                        radiusSquared)
+                    {
+                        continue;
+                    }
+
+                    shockwaveSegmentBuffer.Add(segment);
+                }
+            }
+
+            int damagedCount = 0;
+            while (damagedCount < segmentLimit &&
+                   shockwaveSegmentBuffer.Count > 0)
+            {
+                int nearestIndex = FindNearestShockwaveSegment(center);
+                TerrainSegment nearest = shockwaveSegmentBuffer[nearestIndex];
+                shockwaveSegmentBuffer.RemoveAt(nearestIndex);
+                if (nearest != null && nearest.TryApplyDamage(
+                        1,
+                        TerrainOwner.Boss,
+                        bossTransform))
+                {
+                    damagedCount++;
+                }
+            }
+
+            shockwaveSegmentBuffer.Clear();
+        }
+
+        private int FindNearestShockwaveSegment(Vector2 center)
+        {
+            int nearestIndex = 0;
+            float nearestDistance = float.MaxValue;
+            for (int i = 0; i < shockwaveSegmentBuffer.Count; i++)
+            {
+                TerrainSegment segment = shockwaveSegmentBuffer[i];
+                Collider2D segmentCollider = segment != null
+                    ? segment.SegmentCollider
+                    : null;
+                float distance = segmentCollider != null
+                    ? (segmentCollider.ClosestPoint(center) - center).sqrMagnitude
+                    : float.MaxValue;
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearestIndex = i;
+                }
+            }
+
+            return nearestIndex;
         }
 
         private bool TryFindValidPosition(TerrainType terrainType, Vector2 requestedPosition, out Vector2 validPosition)
