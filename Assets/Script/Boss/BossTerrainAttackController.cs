@@ -235,11 +235,24 @@ namespace FinalGame.Boss
                 return true;
             }
 
-            return creationService.TryCreateTerrain(
-                GetTerrainType(plan.AttackType),
+            TerrainType terrainType = GetTerrainType(plan.AttackType);
+            if (terrainType == TerrainType.FallingStoneWall ||
+                terrainType == TerrainType.FallingStoneSpike)
+            {
+                // 石墙和石锥到释放时间后只做一次最终结算。
+                ResolveLockedFallingAttack(
+                    terrainType,
+                    plan.SpawnPosition);
+                return true;
+            }
+
+            // 其他攻击即使最终放置失败，也结束本轮并进入原冷却。
+            creationService.TryCreateTerrain(
+                terrainType,
                 TerrainOwner.Boss,
                 bossTransform,
                 plan.SpawnPosition);
+            return true;
         }
 
         public void CancelActiveTelegraph()
@@ -477,6 +490,142 @@ namespace FinalGame.Boss
             }
 
             return landing;
+        }
+
+        private void ResolveLockedFallingAttack(
+            TerrainType terrainType,
+            Vector2 spawnPosition)
+        {
+            // 2026-07-19：最终位置只查这一次，预警期间不重复查。
+            Vector2 terrainSize =
+                creationService.GetTerrainWorldSize(terrainType);
+            Vector2 overlapSize = new Vector2(
+                Mathf.Max(0.01f, terrainSize.x * 0.98f),
+                Mathf.Max(0.01f, terrainSize.y * 0.98f));
+            Collider2D[] blockers = Physics2D.OverlapBoxAll(
+                spawnPosition,
+                overlapSize,
+                0f);
+
+            bool hasTerrainBlocker = false;
+            Collider2D hardBlocker = null;
+
+            for (int i = 0; i < blockers.Length; i++)
+            {
+                Collider2D blocker = blockers[i];
+                if (blocker == null ||
+                    !blocker.enabled ||
+                    blocker.isTrigger)
+                {
+                    continue;
+                }
+
+                bool isTelegraph =
+                    telegraph != null &&
+                    telegraph.OwnsTransform(blocker.transform);
+                TerrainEntity terrain = GetTerrainFromCollider(blocker);
+                PermanentTerrainMarker permanentTerrain =
+                    blocker.GetComponentInParent<PermanentTerrainMarker>();
+
+                // 每个实际挡住的位置都记下来，测试时能直接看到是谁。
+                LogFinalSpawnBlocker(
+                    blocker,
+                    isTelegraph,
+                    terrain,
+                    permanentTerrain);
+
+                if (isTelegraph)
+                {
+                    // 预警自己以后即使加了 Collider，也不能挡住正式实体。
+                    continue;
+                }
+
+                if (permanentTerrain != null || terrain == null)
+                {
+                    // 没有 TerrainEntity 的普通场景碰撞体也按永久物体处理。
+                    if (hardBlocker == null)
+                    {
+                        hardBlocker = blocker;
+                    }
+
+                    continue;
+                }
+
+                hasTerrainBlocker = true;
+            }
+
+            if (hardBlocker != null)
+            {
+                Debug.LogWarning(
+                    $"Boss attack cancelled at {spawnPosition}: " +
+                    $"'{hardBlocker.name}' on layer " +
+                    $"{GetLayerLabel(hardBlocker.gameObject.layer)} " +
+                    "is a permanent or non-terrain blocker.",
+                    hardBlocker);
+                return;
+            }
+
+            // 石墙和石锥保留原碰撞行为，让可破坏掩体正常挡住它们。
+            bool created =
+                creationService.TryCreateTerrainAtResolvedPosition(
+                    terrainType,
+                    TerrainOwner.Boss,
+                    bossTransform,
+                    spawnPosition);
+
+            if (!created)
+            {
+                Debug.LogWarning(
+                    $"Boss attack at {spawnPosition} was settled " +
+                    "without creating terrain because the locked " +
+                    "position no longer passed the non-overlap rules.",
+                    this);
+            }
+            else if (hasTerrainBlocker)
+            {
+                Debug.Log(
+                    $"Boss {terrainType} activated against the " +
+                    "blocking TerrainEntity at the locked position.",
+                    this);
+            }
+        }
+
+        private static TerrainEntity GetTerrainFromCollider(
+            Collider2D collider)
+        {
+            // 断裂石墙已经离开父节点，需要先从分段组件找回原地形。
+            TerrainSegment segment =
+                collider.GetComponentInParent<TerrainSegment>();
+            return segment != null
+                ? segment.ParentTerrain
+                : collider.GetComponentInParent<TerrainEntity>();
+        }
+
+        private void LogFinalSpawnBlocker(
+            Collider2D blocker,
+            bool isTelegraph,
+            TerrainEntity terrain,
+            PermanentTerrainMarker permanentTerrain)
+        {
+            Transform root = blocker.transform.root;
+            Debug.Log(
+                "Boss final spawn blocker | " +
+                $"Collider: {blocker.name} | " +
+                $"Layer: {GetLayerLabel(blocker.gameObject.layer)} | " +
+                $"Tag: {blocker.tag} | " +
+                $"Root: {(root != null ? root.name : "<none>")} | " +
+                $"TelegraphSelf: {isTelegraph} | " +
+                $"TerrainEntity: {terrain != null} | " +
+                $"PermanentTerrainMarker: {permanentTerrain != null}",
+                blocker);
+        }
+
+        private static string GetLayerLabel(int layer)
+        {
+            string layerName = LayerMask.LayerToName(layer);
+            return string.IsNullOrEmpty(layerName)
+                ? layer.ToString()
+                : $"{layerName} ({layer})";
         }
 
         private Vector2 ClampToArena(TerrainType terrainType, Vector2 position)

@@ -271,16 +271,12 @@ namespace FinalGame.Boss
             while (Time.time < telegraphEndsAt && CurrentState == BossState.Telegraph &&
                    bossDamageable.IsAlive && IsPlayerInsideActivationRange)
             {
-                if (!terrainAttackController.RefreshTrackedAttack(plan))
-                {
-                    break;
-                }
-
+                // 2026-07-19：预警开始后位置锁定，不再重新选点或重新计时。
                 yield return null;
             }
 
             if (CurrentState != BossState.Telegraph || !bossDamageable.IsAlive ||
-                !IsPlayerInsideActivationRange || !terrainAttackController.RefreshTrackedAttack(plan))
+                !IsPlayerInsideActivationRange)
             {
                 terrainAttackController.CancelActiveTelegraph();
                 activeRoutine = null;

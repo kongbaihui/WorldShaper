@@ -165,6 +165,81 @@ namespace Challenge2.TerrainPrototype
                 return false;
             }
 
+            return CreateTerrainAtPosition(
+                terrainType,
+                owner,
+                creator,
+                placement.SnappedPosition);
+        }
+
+        public bool TryCreateTerrainAtResolvedPosition(
+            TerrainType terrainType,
+            TerrainOwner owner,
+            Transform creator,
+            Vector2 worldPosition)
+        {
+            // Boss 已经处理完阻挡物，这里再确认边界、距离和冷却。
+            Vector2 snappedPosition = SnapToGrid(worldPosition);
+            TerrainDefinition definition =
+                GetRuntimeDefinition(terrainType);
+
+            if (creator == null)
+            {
+                return SetInvalidPlacement(
+                    "Creator missing",
+                    snappedPosition);
+            }
+
+            if (!IsWithinCreationDistance(
+                    creator,
+                    snappedPosition,
+                    _maximumCreationDistance))
+            {
+                return SetInvalidPlacement(
+                    "Too far from creator",
+                    snappedPosition);
+            }
+
+            if (_arenaCamera == null ||
+                !ContainsBounds(
+                    ArenaBounds,
+                    snappedPosition,
+                    definition.Size))
+            {
+                return SetInvalidPlacement(
+                    "Outside arena",
+                    snappedPosition);
+            }
+
+            if (_registry == null)
+            {
+                return SetInvalidPlacement(
+                    "Terrain registry unavailable",
+                    snappedPosition);
+            }
+
+            if (Time.time < _nextAllowedCreationTime[(int)owner])
+            {
+                return SetInvalidPlacement(
+                    "Creation cooldown",
+                    snappedPosition);
+            }
+
+            // 占用物已经由 Boss 最终结算检查过，这里只保留其他放置规则。
+            return CreateTerrainAtPosition(
+                terrainType,
+                owner,
+                creator,
+                snappedPosition);
+        }
+
+        private bool CreateTerrainAtPosition(
+            TerrainType terrainType,
+            TerrainOwner owner,
+            Transform creator,
+            Vector2 snappedPosition)
+        {
+            // 普通创建和 Boss 最终释放共用同一套实例化代码。
             GameObject prefab =
                 GetPrefab(terrainType);
 
@@ -173,7 +248,7 @@ namespace Challenge2.TerrainPrototype
                 LastPlacementResult =
                     TerrainPlacementResult.Invalid(
                         "Terrain prefab unavailable",
-                        placement.SnappedPosition);
+                        snappedPosition);
 
                 PlacementEvaluated?.Invoke(
                     LastPlacementResult);
@@ -184,7 +259,7 @@ namespace Challenge2.TerrainPrototype
             GameObject terrainObject =
                 Instantiate(
                     prefab,
-                    placement.SnappedPosition,
+                    snappedPosition,
                     Quaternion.identity);
 
             terrainObject.name =
@@ -201,7 +276,7 @@ namespace Challenge2.TerrainPrototype
                 LastPlacementResult =
                     TerrainPlacementResult.Invalid(
                         "Terrain prefab is invalid",
-                        placement.SnappedPosition);
+                        snappedPosition);
 
                 PlacementEvaluated?.Invoke(
                     LastPlacementResult);
@@ -233,12 +308,24 @@ namespace Challenge2.TerrainPrototype
 
             LastPlacementResult =
                 TerrainPlacementResult.Valid(
-                    placement.SnappedPosition);
+                    snappedPosition);
 
             PlacementEvaluated?.Invoke(
                 LastPlacementResult);
 
             return true;
+        }
+
+        private bool SetInvalidPlacement(
+            string reason,
+            Vector2 snappedPosition)
+        {
+            LastPlacementResult =
+                TerrainPlacementResult.Invalid(
+                    reason,
+                    snappedPosition);
+            PlacementEvaluated?.Invoke(LastPlacementResult);
+            return false;
         }
 
         public TerrainPlacementResult EvaluatePlacement(
@@ -548,6 +635,33 @@ namespace Challenge2.TerrainPrototype
             _minimumFloatingPlatformGap =
                 playerHeight +
                 _additionalPlatformVerticalGap;
+        }
+
+        private static bool IsWithinCreationDistance(
+            Transform creator,
+            Vector2 targetPosition,
+            float maximumDistance)
+        {
+            if (maximumDistance <= 0f)
+            {
+                return true;
+            }
+
+            return ((Vector2)creator.position - targetPosition)
+                       .sqrMagnitude <=
+                   maximumDistance * maximumDistance;
+        }
+
+        private static bool ContainsBounds(
+            Rect arenaBounds,
+            Vector2 center,
+            Vector2 size)
+        {
+            Vector2 extents = size * 0.5f;
+            return center.x - extents.x >= arenaBounds.xMin &&
+                   center.x + extents.x <= arenaBounds.xMax &&
+                   center.y - extents.y >= arenaBounds.yMin &&
+                   center.y + extents.y <= arenaBounds.yMax;
         }
 
         private static float ResolvePlayerHeight(

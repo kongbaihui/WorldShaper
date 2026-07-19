@@ -168,6 +168,28 @@ namespace FinalGame.Boss
             collapseTarget = null;
         }
 
+        public bool OwnsTransform(Transform candidate)
+        {
+            if (candidate == null)
+            {
+                return false;
+            }
+
+            // 只检查这次预警创建出来的几个标记，不能把 TerrainSystem 全算进去。
+            for (int i = 0; i < markers.Count; i++)
+            {
+                SpriteRenderer marker = markers[i];
+                if (marker != null &&
+                    (candidate == marker.transform ||
+                     candidate.IsChildOf(marker.transform)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private void CreateFallingPath(BossAttackPlan plan, TerrainType terrainType, Color color)
         {
             EnsureMarkerSprite();
