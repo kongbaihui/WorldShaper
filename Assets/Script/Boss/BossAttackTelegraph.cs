@@ -28,6 +28,10 @@ namespace FinalGame.Boss
         [SerializeField] private int sortingOrder = 40;
 
         private readonly List<GameObject> activeMarkers = new List<GameObject>(3);
+        private readonly List<SpriteRenderer> collapseRenderers =
+            new List<SpriteRenderer>(10);
+        private readonly List<Color> collapseOriginalColors =
+            new List<Color>(10);
         private Material runtimeLineMaterial;
         private TerrainEntity trackedCollapseTarget;
         private GameObject trackedCollapseMarker;
@@ -109,6 +113,17 @@ namespace FinalGame.Boss
 
         public void Clear()
         {
+            for (int i = 0; i < collapseRenderers.Count; i++)
+            {
+                if (collapseRenderers[i] != null)
+                {
+                    collapseRenderers[i].color = collapseOriginalColors[i];
+                }
+            }
+
+            collapseRenderers.Clear();
+            collapseOriginalColors.Clear();
+
             for (int i = 0; i < activeMarkers.Count; i++)
             {
                 if (activeMarkers[i] != null)
@@ -174,6 +189,31 @@ namespace FinalGame.Boss
 
         private void CreateCollapseMarker(TerrainEntity target)
         {
+            if (target is FallingStoneWallTerrain wall)
+            {
+                wall.CopyActiveSegmentRenderers(collapseRenderers);
+            }
+            else if (target is FloatingPlatformTerrain platform)
+            {
+                platform.CopyActiveSegmentRenderers(collapseRenderers);
+            }
+
+            if (collapseRenderers.Count > 0)
+            {
+                for (int i = 0; i < collapseRenderers.Count; i++)
+                {
+                    SpriteRenderer renderer = collapseRenderers[i];
+                    collapseOriginalColors.Add(
+                        renderer != null ? renderer.color : Color.white);
+                    if (renderer != null)
+                    {
+                        renderer.color = collapseColor;
+                    }
+                }
+
+                return;
+            }
+
             Sprite sprite = target.VisualSprite != null ? target.VisualSprite : markerSprite;
             GetTargetBounds(target, out Vector2 center, out Vector2 size);
             trackedCollapseTarget = target;

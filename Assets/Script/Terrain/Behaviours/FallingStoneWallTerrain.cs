@@ -6,8 +6,10 @@ namespace Challenge2.TerrainPrototype
     [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
     public sealed class FallingStoneWallTerrain : TerrainEntity, ITerrainSegmentHost
     {
-        private const int SegmentCount = 10;
-        private const float VisualOverlapWorldUnits = 0.015f;
+        private const int SegmentCount = 3;
+        // 略微覆盖相邻贴图的透明边缘，避免分段之间出现白缝。
+        // 只扩大 Sprite，不扩大 Collider。
+        private const float VisualOverlapWorldUnits = 1f;
 
         [Header("Impact Damage")]
         [SerializeField, Min(0)] private int _impactDamage = 10;
@@ -229,7 +231,13 @@ namespace Challenge2.TerrainPrototype
                     segmentObject.transform,
                     false);
 
-                Vector3 visualScale = Vector3.one;
+                Vector2 spriteSize = sourceRenderer.sprite.bounds.size;
+                Vector3 visualScale = new Vector3(
+                    sourceCollider.size.x /
+                    Mathf.Max(0.0001f, spriteSize.x),
+                    sourceCollider.size.y /
+                    Mathf.Max(0.0001f, spriteSize.y),
+                    1f);
                 float visualAxisScale =
                     (segmentLength + visualOverlapLocal) /
                     spriteAxisSize;

@@ -7,7 +7,6 @@ namespace FinalGame.Boss
     [DisallowMultipleComponent]
     public sealed class BossTerrainAttackController : MonoBehaviour
     {
-        private const float DebrisScale = 2f;
         private const float DebrisSpeed = 15f;
         private const int DebrisSortingOrder = 18;
 
@@ -48,6 +47,7 @@ namespace FinalGame.Boss
 
         [Header("Terrain Collapse")]
         [SerializeField, Min(0.1f)] private float destructionRange = 70f;
+        [SerializeField, Min(0.1f)] private float debrisSizeMultiplier = 1.25f;
 
         private readonly List<TerrainEntity> terrainBuffer = new List<TerrainEntity>(32);
         private readonly List<SpriteRenderer> terrainSegmentRenderers =
@@ -88,6 +88,7 @@ namespace FinalGame.Boss
         {
             shockwaveRadius = Mathf.Max(0.1f, shockwaveRadius);
             shockwaveSelectionRange = Mathf.Max(shockwaveRadius, shockwaveSelectionRange);
+            debrisSizeMultiplier = Mathf.Max(0.1f, debrisSizeMultiplier);
         }
 
         private void OnDisable()
@@ -913,8 +914,11 @@ namespace FinalGame.Boss
             debrisObject.SetActive(false);
             debrisObject.transform.position =
                 sourceRenderer.transform.position;
-            debrisObject.transform.localScale =
-                new Vector3(DebrisScale, DebrisScale, 1f);
+            Vector3 sourceWorldScale = sourceRenderer.transform.lossyScale;
+            debrisObject.transform.localScale = new Vector3(
+                Mathf.Abs(sourceWorldScale.x) * debrisSizeMultiplier,
+                Mathf.Abs(sourceWorldScale.y) * debrisSizeMultiplier,
+                1f);
 
             SpriteRenderer renderer =
                 debrisObject.AddComponent<SpriteRenderer>();

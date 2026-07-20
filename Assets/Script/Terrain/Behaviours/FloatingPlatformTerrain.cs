@@ -5,8 +5,10 @@ namespace Challenge2.TerrainPrototype
     public sealed class FloatingPlatformTerrain : TerrainEntity, ITerrainSegmentHost
     {
         // 2026-07-19：平台拆成十段，图片之间稍微压一点，避免出现白缝。
-        private const int SegmentCount = 10;
-        private const float VisualOverlapWorldUnits = 0.015f;
+        private const int SegmentCount = 3;
+        // 略微覆盖相邻贴图的透明边缘，避免像素摄像机下出现白缝。
+        // 只扩大 Sprite，不扩大 Collider。
+        private const float VisualOverlapWorldUnits = 1f;
 
         private readonly GameObject[] _segmentObjects =
             new GameObject[SegmentCount];
@@ -111,8 +113,12 @@ namespace Challenge2.TerrainPrototype
                     : 0f;
             float spriteWidth =
                 sourceRenderer.sprite.bounds.size.x;
+            float spriteHeight =
+                sourceRenderer.sprite.bounds.size.y;
 
-            if (segmentWidth <= 0f || spriteWidth <= 0.0001f)
+            if (segmentWidth <= 0f ||
+                spriteWidth <= 0.0001f ||
+                spriteHeight <= 0.0001f)
             {
                 Debug.LogError(
                     "Floating Platform has an invalid Sprite or Collider width.",
@@ -169,7 +175,7 @@ namespace Challenge2.TerrainPrototype
                     new Vector3(
                         (segmentWidth + visualOverlapLocal) /
                         spriteWidth,
-                        1f,
+                        sourceCollider.size.y / spriteHeight,
                         1f);
 
                 SpriteRenderer segmentRenderer =

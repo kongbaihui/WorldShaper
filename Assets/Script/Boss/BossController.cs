@@ -343,7 +343,15 @@ namespace FinalGame.Boss
             }
 
             bool phaseTransitionStarted = TryBeginPhaseTransition(currentHealth, maximumHealth);
-            if (!phaseTransitionStarted && currentHealth < lastObservedHealth)
+            bool attackInProgress =
+                CurrentState == BossState.Telegraph ||
+                CurrentState == BossState.ExecuteAttack;
+
+            // 普通受伤不能打断已经开始的攻击，否则玩家连续命中就能让 Boss 无法出招。
+            // 死亡和阶段转换仍由上面的逻辑正常中断攻击。
+            if (!phaseTransitionStarted &&
+                !attackInProgress &&
+                currentHealth < lastObservedHealth)
             {
                 CancelCurrentAttack();
                 activeRoutine = StartCoroutine(HurtRoutine());
