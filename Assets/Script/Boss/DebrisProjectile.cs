@@ -62,6 +62,21 @@ namespace FinalGame.Boss
                 return;
             }
 
+            TerrainSegment segment =
+                collision.collider.GetComponentInParent<TerrainSegment>();
+            TerrainEntity terrain = segment != null
+                ? segment.ParentTerrain
+                : collision.collider.GetComponentInParent<TerrainEntity>();
+            if (terrain != null &&
+                terrain.Owner != TerrainOwner.Boss &&
+                terrain.TerrainType == TerrainType.FallingStoneWall)
+            {
+                consumed = true;
+                terrain.DestroyTerrain(true);
+                Destroy(gameObject);
+                return;
+            }
+
             PrototypeDamageable target =
                 collision.collider
                     .GetComponentInParent<PrototypeDamageable>();

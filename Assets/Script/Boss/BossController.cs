@@ -386,11 +386,6 @@ namespace FinalGame.Boss
         private IEnumerator HurtRoutine()
         {
             EnterState(BossState.Hurt);
-            if (bossRenderer != null)
-            {
-                bossRenderer.color = Color.white;
-            }
-
             yield return new WaitForSeconds(hurtDuration);
             RestorePhasePresentation();
             activeRoutine = null;
@@ -403,6 +398,7 @@ namespace FinalGame.Boss
         private IEnumerator PhaseTransitionRoutine()
         {
             EnterState(BossState.PhaseTransition);
+            bossDamageable.CancelDamageFlash(false);
             float elapsed = 0f;
             Color phaseColor = GetPhaseColor();
 
@@ -438,6 +434,7 @@ namespace FinalGame.Boss
             CurrentAttack = BossAttackType.None;
             EnterState(BossState.Dead);
             transform.localScale = baseScale;
+            bossDamageable.CancelDamageFlash(false);
             if (bossRenderer != null)
             {
                 bossRenderer.color = new Color(0.16f, 0.16f, 0.20f, 1f);
@@ -480,7 +477,7 @@ namespace FinalGame.Boss
             transform.localScale = baseScale;
             if (bossRenderer != null)
             {
-                bossRenderer.color = GetPhaseColor();
+                bossRenderer.color = baseColor;
             }
         }
 

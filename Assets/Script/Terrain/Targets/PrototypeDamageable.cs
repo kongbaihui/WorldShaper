@@ -57,8 +57,8 @@ namespace Challenge2.TerrainPrototype
             }
 
             _currentHealth = Mathf.Max(0, _currentHealth - amount);
-            HealthChanged?.Invoke(_currentHealth, _maximumHealth);
             PlayDamageFlash();
+            HealthChanged?.Invoke(_currentHealth, _maximumHealth);
             return true;
         }
 
@@ -98,6 +98,20 @@ namespace Challenge2.TerrainPrototype
             }
 
             _flashRoutine = StartCoroutine(DamageFlashRoutine());
+        }
+
+        public void CancelDamageFlash(bool restoreBaseColor = true)
+        {
+            if (_flashRoutine != null)
+            {
+                StopCoroutine(_flashRoutine);
+                _flashRoutine = null;
+            }
+
+            if (restoreBaseColor && _spriteRenderer != null)
+            {
+                _spriteRenderer.color = _baseColor;
+            }
         }
 
         private IEnumerator DamageFlashRoutine()

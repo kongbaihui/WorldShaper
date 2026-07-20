@@ -146,15 +146,15 @@ public sealed class PlayerTerrainController :
                 snappedPosition);
         }
 
-        /*
-         * 右键摧毁地形。
-         */
-        if (mouse.rightButton
-            .wasPressedThisFrame)
-        {
-            TryDamageTerrain(
-                mouseWorldPosition);
-        }
+        ///*
+        // * 右键摧毁地形。
+        // */
+        //if (mouse.rightButton
+        //    .wasPressedThisFrame)
+        //{
+        //    TryDamageTerrain(
+        //        mouseWorldPosition);
+        //}
     }
 
     private void SetBuildMode(
