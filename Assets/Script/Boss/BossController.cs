@@ -30,7 +30,6 @@ namespace FinalGame.Boss
     {
         public BossAttackType AttackType;
         public Vector2 SpawnPosition;
-        public Vector2 AttackReferencePoint;
         public Vector2 LandingPosition;
         public float TelegraphDuration;
         public float AttackRadius;
@@ -46,7 +45,6 @@ namespace FinalGame.Boss
         [SerializeField] private Transform player;
         [SerializeField] private Rigidbody2D playerBody;
         [SerializeField] private PrototypeDamageable bossDamageable;
-        [SerializeField] private BossBarScrip bossBar;
         [SerializeField] private BossTerrainAttackController terrainAttackController;
         [SerializeField] private SpriteRenderer bossRenderer;
 
@@ -129,7 +127,6 @@ namespace FinalGame.Boss
 
         private void Start()
         {
-            UpdateBossBar();
             EnterState(BossState.Idle);
         }
 
@@ -338,11 +335,6 @@ namespace FinalGame.Boss
 
         private void HandleHealthChanged(int currentHealth, int maximumHealth)
         {
-            if (bossBar != null)
-            {
-                bossBar.ChangeBarTo(maximumHealth > 0 ? currentHealth * 100f / maximumHealth : 0f);
-            }
-
             if (currentHealth <= 0)
             {
                 lastObservedHealth = currentHealth;
@@ -487,16 +479,6 @@ namespace FinalGame.Boss
         private Color GetPhaseColor()
         {
             return CurrentPhase >= 3 ? phaseThreeColor : CurrentPhase == 2 ? phaseTwoColor : baseColor;
-        }
-
-        private void UpdateBossBar()
-        {
-            if (bossDamageable != null && bossBar != null)
-            {
-                bossBar.ChangeBarTo(bossDamageable.MaximumHealth > 0
-                    ? bossDamageable.CurrentHealth * 100f / bossDamageable.MaximumHealth
-                    : 0f);
-            }
         }
 
         private void EnterState(BossState state)

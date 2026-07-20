@@ -62,27 +62,29 @@ public class heroscrip : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        
+        float horizontalInput = 0f;
         //control -x
         if (Keyboard.current.aKey.isPressed)
         {
-            GetComponent<SpriteRenderer>().flipX = true;
-            GiveAnimationRun(true);
-            float tempYSpeed = HeroPhysics.velocity.y;
-            HeroPhysics.velocity = new Vector2(-xSpeed, tempYSpeed);
+            horizontalInput = -1f;
         }
-        else if (!Keyboard.current.dKey.isPressed)
+        //control +x
+        else if (Keyboard.current.dKey.isPressed)
         {
-            GiveAnimationRun(false);
+            horizontalInput = 1f;
         }
-        //control x
-        if (Keyboard.current.dKey.isPressed)
+
+        HeroPhysics.velocity = new Vector2(
+            horizontalInput * xSpeed,
+            HeroPhysics.velocity.y);
+
+        if (horizontalInput != 0f)
         {
-            GetComponent<SpriteRenderer>().flipX = false;
+            GetComponent<SpriteRenderer>().flipX = horizontalInput < 0f;
             GiveAnimationRun(true);
-            float tempYSpeed = HeroPhysics.velocity.y;
-            HeroPhysics.velocity = new Vector2(xSpeed, tempYSpeed);
         }
-        else if (!Keyboard.current.aKey.isPressed)
+        else
         {
             GiveAnimationRun(false);
         }

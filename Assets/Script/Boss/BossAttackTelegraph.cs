@@ -1,10 +1,13 @@
-using System.Collections;
 using System.Collections.Generic;
 using Challenge2.TerrainPrototype;
 using UnityEngine;
 
 namespace FinalGame.Boss
 {
+    /// <summary>
+    /// 课程作业版攻击预警：只显示生成区域、落点和范围圆环。
+    /// 复杂的分段染色、运行时纹理和命中特效交给美术资源扩展，而不放在 Boss 逻辑里。
+    /// </summary>
     [DisallowMultipleComponent]
     public sealed class BossAttackTelegraph : MonoBehaviour
     {
@@ -13,102 +16,61 @@ namespace FinalGame.Boss
         [SerializeField] private Transform telegraphRoot;
 
         [Header("Presentation")]
+        [SerializeField] private Sprite markerSprite;
+        [SerializeField] private Material lineMaterial;
         [SerializeField] private Color platformColor = new Color(0.15f, 0.95f, 1f, 0.55f);
         [SerializeField] private Color wallColor = new Color(1f, 0.45f, 0.1f, 0.62f);
         [SerializeField] private Color spikeColor = new Color(1f, 0.05f, 0.05f, 0.72f);
         [SerializeField] private Color lightWaveColor = new Color(0.25f, 0.9f, 1f, 0.82f);
         [SerializeField] private Color collapseColor = new Color(1f, 0.05f, 0.55f, 0.68f);
-        [SerializeField, Min(0.05f)] private float warningLineWidth = 0.35f;
-        [SerializeField, Min(0.05f)] private float lightWaveLineWidth = 0.28f;
-        [SerializeField, Min(0.05f)] private float lightWaveImpactDuration = 0.32f;
+        [SerializeField, Min(0.05f)] private float lineWidth = 0.3f;
         [SerializeField, Min(0f)] private float landingAreaPadding = 2f;
         [SerializeField] private int sortingOrder = 40;
 
-        private readonly List<SpriteRenderer> markers = new List<SpriteRenderer>(4);
-        private readonly List<Color> markerColors = new List<Color>(4);
-        private readonly List<SpriteRenderer> collapseSegmentBuffer =
-            new List<SpriteRenderer>(10);
-        private readonly List<CollapseSegmentColor> collapseSegmentColors =
-            new List<CollapseSegmentColor>(10);
-        private Texture2D markerTexture;
-        private Sprite markerSprite;
-        private SpriteRenderer spawnMarker;
-        private SpriteRenderer pathMarker;
-        private SpriteRenderer landingMarker;
-        private SpriteRenderer collapseMarker;
-        private LineRenderer shockwaveWarningRing;
-        private LineRenderer shockwaveImpactRing;
-        private Material ringMaterial;
-        private Coroutine shockwaveImpactRoutine;
-        private TerrainEntity collapseTarget;
-        private FallingStoneWallTerrain collapseWallTarget;
+        private readonly List<GameObject> activeMarkers = new List<GameObject>(3);
+        private Material runtimeLineMaterial;
+        private TerrainEntity trackedCollapseTarget;
+        private GameObject trackedCollapseMarker;
 
         private void Awake()
         {
-            EnsureMarkerSprite();
-        }
-
-        private void Update()
-        {
-            float pulse = 0.5f + Mathf.PingPong(Time.time * 1.6f, 0.5f);
-            for (int i = 0; i < markers.Count; i++)
+            if (telegraphRoot == null)
             {
-                SpriteRenderer marker = markers[i];
-                if (marker == null)
-                {
-                    continue;
-                }
-
-                Color color = markerColors[i];
-                color.a *= pulse;
-                marker.color = color;
-            }
-
-            UpdateCollapseSegments(pulse);
-
-            if (shockwaveWarningRing != null)
-            {
-                Color color = lightWaveColor;
-                color.a *= pulse;
-                shockwaveWarningRing.startColor = color;
-                shockwaveWarningRing.endColor = color;
-            }
-
-            if (collapseMarker != null && collapseTarget != null && !collapseTarget.IsBeingDestroyed)
-            {
-                UpdateCollapseMarker(collapseTarget);
+                telegraphRoot = transform;
             }
         }
 
         private void OnDisable()
         {
             Clear();
-            ClearShockwaveImpact();
+        }
+
+        private void Update()
+        {
+            if (trackedCollapseTarget == null || trackedCollapseMarker == null ||
+                trackedCollapseTarget.IsBeingDestroyed)
+            {
+                return;
+            }
+
+            GetTargetBounds(trackedCollapseTarget, out Vector2 center, out Vector2 size);
+            trackedCollapseMarker.transform.position = center;
+            SetMarkerWorldSize(trackedCollapseMarker, size);
         }
 
         private void OnDestroy()
         {
             Clear();
-            if (markerSprite != null)
+            if (runtimeLineMaterial != null)
             {
-                Destroy(markerSprite);
-            }
-
-            if (markerTexture != null)
-            {
-                Destroy(markerTexture);
-            }
-
-            if (ringMaterial != null)
-            {
-                Destroy(ringMaterial);
+                Destroy(runtimeLineMaterial);
             }
         }
 
         public void Show(BossAttackPlan plan)
         {
             Clear();
-            if (plan == null || creationService == null)
+            if (plan == null)
             {
                 return;
             }
@@ -116,116 +78,53 @@ namespace FinalGame.Boss
             switch (plan.AttackType)
             {
                 case BossAttackType.FloatingPlatformShield:
-                    spawnMarker = CreateTerrainPreview(
-                        "Telegraph_FloatingPlatformPreview",
-                        TerrainType.FloatingPlatform,
-                        plan.SpawnPosition,
-                        platformColor);
+                    CreateTerrainMarker(TerrainType.FloatingPlatform, plan.SpawnPosition, platformColor);
                     break;
 
                 case BossAttackType.FallingStoneWall:
-                    spawnMarker = CreateTerrainPreview(
-                        "Telegraph_WallSpawn",
-                        TerrainType.FallingStoneWall,
-                        plan.SpawnPosition,
-                        wallColor);
-                    CreateFallingPath(plan, TerrainType.FallingStoneWall, wallColor);
+                    CreateLandingMarker(TerrainType.FallingStoneWall, plan.LandingPosition, wallColor);
                     break;
 
                 case BossAttackType.FallingStoneSpike:
-                    spawnMarker = CreateTerrainPreview(
-                        "Telegraph_SpikePreview",
-                        TerrainType.FallingStoneSpike,
-                        plan.SpawnPosition,
-                        spikeColor);
-                    CreateFallingPath(plan, TerrainType.FallingStoneSpike, spikeColor);
+                    CreateLandingMarker(TerrainType.FallingStoneSpike, plan.LandingPosition, spikeColor);
                     break;
 
                 case BossAttackType.CloseRangeLightWave:
-                    shockwaveWarningRing = CreateRing(
-                        "Telegraph_CloseRangeLightWave",
-                        plan.SpawnPosition,
-                        plan.AttackRadius,
-                        lightWaveLineWidth,
-                        lightWaveColor);
+                    CreateRing(plan.SpawnPosition, plan.AttackRadius, lightWaveColor);
                     break;
 
                 case BossAttackType.TerrainCollapse:
-                    collapseTarget = plan.CollapseTarget;
-                    collapseWallTarget =
-                        collapseTarget as FallingStoneWallTerrain;
-                    if (collapseWallTarget != null)
+                    if (plan.CollapseTarget != null)
                     {
-                        UpdateCollapseSegments(1f);
-                    }
-                    else if (collapseTarget != null)
-                    {
-                        collapseMarker = CreateMarker(
-                            "Telegraph_CollapseTarget",
-                            collapseTarget.VisualSprite != null ? collapseTarget.VisualSprite : markerSprite,
-                            collapseTarget.transform.position,
-                            GetCollapseWorldSize(collapseTarget),
-                            collapseColor);
-                        UpdateCollapseMarker(collapseTarget);
+                        CreateCollapseMarker(plan.CollapseTarget);
                     }
                     break;
             }
         }
 
+        // 保留接口，避免旧场景或调用方失效。课程版攻击位置在预警开始时锁定。
         public void UpdateTracking(BossAttackPlan plan)
         {
-            if (plan == null || creationService == null)
-            {
-                return;
-            }
-
-            if (plan.AttackType == BossAttackType.FallingStoneWall)
-            {
-                SetMarker(spawnMarker, plan.SpawnPosition,
-                    creationService.GetPreviewScale(TerrainType.FallingStoneWall));
-                UpdateFallingPath(plan, TerrainType.FallingStoneWall);
-            }
-            else if (plan.AttackType == BossAttackType.FallingStoneSpike)
-            {
-                SetMarker(spawnMarker, plan.SpawnPosition,
-                    creationService.GetPreviewScale(TerrainType.FallingStoneSpike));
-                UpdateFallingPath(plan, TerrainType.FallingStoneSpike);
-            }
         }
 
         public void Clear()
         {
-            RestoreCollapseSegmentColors();
-
-            if (shockwaveWarningRing != null)
+            for (int i = 0; i < activeMarkers.Count; i++)
             {
-                Destroy(shockwaveWarningRing.gameObject);
-                shockwaveWarningRing = null;
-            }
-
-            for (int i = 0; i < markers.Count; i++)
-            {
-                if (markers[i] != null)
+                if (activeMarkers[i] != null)
                 {
-                    Destroy(markers[i].gameObject);
+                    Destroy(activeMarkers[i]);
                 }
             }
 
-            markers.Clear();
-            markerColors.Clear();
-            spawnMarker = null;
-            pathMarker = null;
-            landingMarker = null;
-            collapseMarker = null;
-            collapseTarget = null;
-            collapseWallTarget = null;
+            activeMarkers.Clear();
+            trackedCollapseTarget = null;
+            trackedCollapseMarker = null;
         }
 
+        // 课程版不再额外生成冲击波命中特效，攻击前的圆环已经表达范围。
         public void PlayShockwaveImpact(Vector2 center, float radius)
         {
-            ClearShockwaveImpact();
-            shockwaveImpactRoutine = StartCoroutine(
-                ShockwaveImpactRoutine(center, Mathf.Max(0.1f, radius)));
         }
 
         public bool OwnsTransform(Transform candidate)
@@ -235,13 +134,11 @@ namespace FinalGame.Boss
                 return false;
             }
 
-            // 只检查这次预警创建出来的几个标记，不能把 TerrainSystem 全算进去。
-            for (int i = 0; i < markers.Count; i++)
+            for (int i = 0; i < activeMarkers.Count; i++)
             {
-                SpriteRenderer marker = markers[i];
+                GameObject marker = activeMarkers[i];
                 if (marker != null &&
-                    (candidate == marker.transform ||
-                     candidate.IsChildOf(marker.transform)))
+                    (candidate == marker.transform || candidate.IsChildOf(marker.transform)))
                 {
                     return true;
                 }
@@ -250,390 +147,153 @@ namespace FinalGame.Boss
             return false;
         }
 
-        private void CreateFallingPath(BossAttackPlan plan, TerrainType terrainType, Color color)
+        private void CreateTerrainMarker(TerrainType terrainType, Vector2 position, Color color)
         {
-            EnsureMarkerSprite();
-            float height = Mathf.Max(0.1f, plan.SpawnPosition.y - plan.LandingPosition.y);
-            pathMarker = CreateMarker(
-                "Telegraph_DropPath",
-                markerSprite,
-                new Vector2(plan.SpawnPosition.x, plan.LandingPosition.y + height * 0.5f),
-                new Vector2(warningLineWidth, height),
-                color);
-
-            Vector2 terrainSize = creationService.GetTerrainWorldSize(terrainType);
-            landingMarker = CreateMarker(
-                "Telegraph_LandingArea",
-                markerSprite,
-                plan.LandingPosition,
-                new Vector2(terrainSize.x + landingAreaPadding, Mathf.Max(0.2f, terrainSize.y * 0.12f)),
-                color);
+            Sprite sprite = creationService != null
+                ? creationService.GetPreviewSprite(terrainType)
+                : markerSprite;
+            Vector2 size = creationService != null
+                ? creationService.GetTerrainWorldSize(terrainType)
+                : Vector2.one * 2f;
+            CreateMarker(position, size, sprite, color);
         }
 
-        private void UpdateFallingPath(BossAttackPlan plan, TerrainType terrainType)
+        private void CreateLandingMarker(TerrainType terrainType, Vector2 position, Color color)
         {
-            float height = Mathf.Max(0.1f, plan.SpawnPosition.y - plan.LandingPosition.y);
-            SetMarker(pathMarker,
-                new Vector2(plan.SpawnPosition.x, plan.LandingPosition.y + height * 0.5f),
-                new Vector3(warningLineWidth, height, 1f));
-
-            Vector2 terrainSize = creationService.GetTerrainWorldSize(terrainType);
-            SetMarker(landingMarker,
-                plan.LandingPosition,
-                new Vector3(terrainSize.x + landingAreaPadding, Mathf.Max(0.2f, terrainSize.y * 0.12f), 1f));
+            Sprite sprite = creationService != null
+                ? creationService.GetPreviewSprite(terrainType)
+                : markerSprite;
+            Vector2 terrainSize = creationService != null
+                ? creationService.GetTerrainWorldSize(terrainType)
+                : Vector2.one * 2f;
+            Vector2 size = new Vector2(
+                terrainSize.x + landingAreaPadding,
+                Mathf.Max(0.25f, terrainSize.y * 0.15f));
+            CreateMarker(position, size, sprite, color);
         }
 
-        private SpriteRenderer CreateTerrainPreview(
-            string markerName,
-            TerrainType terrainType,
-            Vector2 position,
-            Color color)
+        private void CreateCollapseMarker(TerrainEntity target)
         {
-            Sprite previewSprite = creationService.GetPreviewSprite(terrainType);
-            if (previewSprite == null)
-            {
-                EnsureMarkerSprite();
-                previewSprite = markerSprite;
-            }
-
-            return CreateMarker(
-                markerName,
-                previewSprite,
-                position,
-                creationService.GetPreviewScale(terrainType),
-                color);
+            Sprite sprite = target.VisualSprite != null ? target.VisualSprite : markerSprite;
+            GetTargetBounds(target, out Vector2 center, out Vector2 size);
+            trackedCollapseTarget = target;
+            trackedCollapseMarker = CreateMarker(center, size, sprite, collapseColor);
         }
 
-        private SpriteRenderer CreateMarker(
-            string markerName,
-            Sprite sprite,
-            Vector2 position,
-            Vector2 worldScale,
-            Color color)
+        private GameObject CreateMarker(Vector2 position, Vector2 size, Sprite sprite, Color color)
         {
-            return CreateMarker(markerName, sprite, position, new Vector3(worldScale.x, worldScale.y, 1f), color);
-        }
+            GameObject marker = new GameObject("BossAttackWarning");
+            marker.transform.SetParent(telegraphRoot != null ? telegraphRoot : transform, true);
+            marker.transform.position = position;
 
-        private SpriteRenderer CreateMarker(
-            string markerName,
-            Sprite sprite,
-            Vector2 position,
-            Vector3 worldScale,
-            Color color)
-        {
-            GameObject markerObject = new GameObject(markerName);
-            markerObject.transform.SetParent(telegraphRoot, true);
-            SpriteRenderer renderer = markerObject.AddComponent<SpriteRenderer>();
+            SpriteRenderer renderer = marker.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
-            renderer.sortingOrder = sortingOrder;
             renderer.color = color;
-            markers.Add(renderer);
-            markerColors.Add(color);
-            SetMarker(renderer, position, worldScale);
-            return renderer;
+            renderer.sortingOrder = sortingOrder;
+            SetMarkerWorldSize(marker, size);
+            activeMarkers.Add(marker);
+            return marker;
         }
 
-        private IEnumerator ShockwaveImpactRoutine(Vector2 center, float radius)
+        private static void SetMarkerWorldSize(GameObject marker, Vector2 worldSize)
         {
-            Color impactColor = lightWaveColor;
-            impactColor.a = 1f;
-            shockwaveImpactRing = CreateRing(
-                "Impact_CloseRangeLightWave",
-                center,
-                0.1f,
-                lightWaveLineWidth * 1.7f,
-                impactColor);
-
-            float elapsed = 0f;
-            while (elapsed < lightWaveImpactDuration && shockwaveImpactRing != null)
-            {
-                elapsed += Time.deltaTime;
-                float normalized = Mathf.Clamp01(
-                    elapsed / Mathf.Max(0.05f, lightWaveImpactDuration));
-                float eased = 1f - (1f - normalized) * (1f - normalized);
-                SetRingPositions(
-                    shockwaveImpactRing,
-                    center,
-                    Mathf.Lerp(0.1f, radius, eased));
-
-                Color color = impactColor;
-                color.a = 1f - normalized;
-                shockwaveImpactRing.startColor = color;
-                shockwaveImpactRing.endColor = color;
-                yield return null;
-            }
-
-            if (shockwaveImpactRing != null)
-            {
-                Destroy(shockwaveImpactRing.gameObject);
-                shockwaveImpactRing = null;
-            }
-
-            shockwaveImpactRoutine = null;
-        }
-
-        private LineRenderer CreateRing(
-            string ringName,
-            Vector2 center,
-            float radius,
-            float width,
-            Color color)
-        {
-            EnsureRingMaterial();
-            GameObject ringObject = new GameObject(ringName);
-            ringObject.transform.SetParent(telegraphRoot, true);
-            LineRenderer renderer = ringObject.AddComponent<LineRenderer>();
-            renderer.sharedMaterial = ringMaterial;
-            renderer.useWorldSpace = true;
-            renderer.loop = true;
-            renderer.positionCount = 64;
-            renderer.widthMultiplier = Mathf.Max(0.05f, width);
-            renderer.numCornerVertices = 2;
-            renderer.numCapVertices = 2;
-            renderer.sortingOrder = sortingOrder + 1;
-            renderer.startColor = color;
-            renderer.endColor = color;
-            SetRingPositions(renderer, center, radius);
-            return renderer;
-        }
-
-        private static void SetRingPositions(
-            LineRenderer renderer,
-            Vector2 center,
-            float radius)
-        {
+            SpriteRenderer renderer = marker != null
+                ? marker.GetComponent<SpriteRenderer>()
+                : null;
             if (renderer == null)
             {
                 return;
             }
 
-            int pointCount = renderer.positionCount;
-            for (int i = 0; i < pointCount; i++)
-            {
-                float angle = i * Mathf.PI * 2f / pointCount;
-                renderer.SetPosition(
-                    i,
-                    center + new Vector2(
-                        Mathf.Cos(angle),
-                        Mathf.Sin(angle)) * radius);
-            }
+            Vector2 spriteSize = renderer.sprite != null
+                ? renderer.sprite.bounds.size
+                : Vector2.one;
+            Vector3 parentScale = marker.transform.parent != null
+                ? marker.transform.parent.lossyScale
+                : Vector3.one;
+            float scaleX = worldSize.x /
+                           Mathf.Max(0.0001f, spriteSize.x * Mathf.Abs(parentScale.x));
+            float scaleY = worldSize.y /
+                           Mathf.Max(0.0001f, spriteSize.y * Mathf.Abs(parentScale.y));
+            marker.transform.localScale = new Vector3(scaleX, scaleY, 1f);
         }
 
-        private void EnsureRingMaterial()
+        private static void GetTargetBounds(
+            TerrainEntity target,
+            out Vector2 center,
+            out Vector2 size)
         {
-            if (ringMaterial != null)
+            SpriteRenderer[] renderers = target.GetComponentsInChildren<SpriteRenderer>();
+            if (renderers.Length > 0)
             {
+                Bounds bounds = renderers[0].bounds;
+                for (int i = 1; i < renderers.Length; i++)
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+
+                center = bounds.center;
+                size = bounds.size;
                 return;
             }
 
-            Shader shader = Shader.Find("Sprites/Default");
-            if (shader == null)
+            Collider2D targetCollider = target.PrimaryCollider;
+            if (targetCollider != null)
             {
+                center = targetCollider.bounds.center;
+                size = targetCollider.bounds.size;
                 return;
             }
 
-            ringMaterial = new Material(shader)
-            {
-                name = "Boss Light Wave Runtime Material"
-            };
+            center = target.transform.position;
+            size = Vector2.one * 2f;
         }
 
-        private void ClearShockwaveImpact()
+        private void CreateRing(Vector2 center, float radius, Color color)
         {
-            if (shockwaveImpactRoutine != null)
+            GameObject ringObject = new GameObject("BossAttackWarningRing");
+            ringObject.transform.SetParent(telegraphRoot != null ? telegraphRoot : transform, true);
+
+            LineRenderer ring = ringObject.AddComponent<LineRenderer>();
+            ring.sharedMaterial = GetLineMaterial();
+            ring.useWorldSpace = true;
+            ring.loop = true;
+            ring.positionCount = 40;
+            ring.widthMultiplier = lineWidth;
+            ring.sortingOrder = sortingOrder;
+            ring.startColor = color;
+            ring.endColor = color;
+
+            float safeRadius = Mathf.Max(0.1f, radius);
+            for (int i = 0; i < ring.positionCount; i++)
             {
-                StopCoroutine(shockwaveImpactRoutine);
-                shockwaveImpactRoutine = null;
+                float angle = i * Mathf.PI * 2f / ring.positionCount;
+                ring.SetPosition(i, center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * safeRadius);
             }
 
-            if (shockwaveImpactRing != null)
-            {
-                Destroy(shockwaveImpactRing.gameObject);
-                shockwaveImpactRing = null;
-            }
+            activeMarkers.Add(ringObject);
         }
 
-        private void UpdateCollapseMarker(TerrainEntity target)
+        private Material GetLineMaterial()
         {
-            if (collapseMarker == null || target == null)
+            if (lineMaterial != null)
             {
-                return;
+                return lineMaterial;
             }
 
-            collapseMarker.transform.rotation = target.transform.rotation;
-            SetMarker(collapseMarker, target.transform.position, GetCollapseWorldSize(target));
-        }
-
-        private void UpdateCollapseSegments(float pulse)
-        {
-            if (collapseWallTarget == null ||
-                collapseWallTarget.IsBeingDestroyed)
+            if (runtimeLineMaterial == null)
             {
-                RemoveDestroyedCollapseSegments();
-                return;
-            }
-
-            collapseWallTarget.CopyActiveSegmentRenderers(
-                collapseSegmentBuffer);
-
-            for (int i = collapseSegmentColors.Count - 1; i >= 0; i--)
-            {
-                SpriteRenderer renderer =
-                    collapseSegmentColors[i].Renderer;
-                if (renderer == null ||
-                    !collapseSegmentBuffer.Contains(renderer))
+                Shader shader = Shader.Find("Sprites/Default");
+                if (shader != null)
                 {
-                    collapseSegmentColors.RemoveAt(i);
+                    runtimeLineMaterial = new Material(shader)
+                    {
+                        name = "Boss Warning Runtime Material"
+                    };
                 }
             }
 
-            for (int i = 0; i < collapseSegmentBuffer.Count; i++)
-            {
-                SpriteRenderer renderer = collapseSegmentBuffer[i];
-                if (renderer == null)
-                {
-                    continue;
-                }
-
-                int colorIndex = FindCollapseSegmentColor(renderer);
-                Color originalColor;
-                if (colorIndex >= 0)
-                {
-                    originalColor =
-                        collapseSegmentColors[colorIndex].OriginalColor;
-                }
-                else
-                {
-                    originalColor = renderer.color;
-                    collapseSegmentColors.Add(
-                        new CollapseSegmentColor(
-                            renderer,
-                            originalColor));
-                }
-
-                Color warningColor = collapseColor;
-                warningColor.a = originalColor.a;
-                renderer.color = Color.Lerp(
-                    originalColor,
-                    warningColor,
-                    Mathf.Clamp01(pulse * collapseColor.a));
-            }
-        }
-
-        private void RestoreCollapseSegmentColors()
-        {
-            collapseSegmentBuffer.Clear();
-            if (collapseWallTarget != null &&
-                !collapseWallTarget.IsBeingDestroyed)
-            {
-                collapseWallTarget.CopyActiveSegmentRenderers(
-                    collapseSegmentBuffer);
-            }
-
-            for (int i = 0; i < collapseSegmentColors.Count; i++)
-            {
-                CollapseSegmentColor segmentColor =
-                    collapseSegmentColors[i];
-                if (segmentColor.Renderer != null &&
-                    collapseSegmentBuffer.Contains(
-                        segmentColor.Renderer))
-                {
-                    segmentColor.Renderer.color =
-                        segmentColor.OriginalColor;
-                }
-            }
-
-            collapseSegmentColors.Clear();
-            collapseSegmentBuffer.Clear();
-        }
-
-        private void RemoveDestroyedCollapseSegments()
-        {
-            for (int i = collapseSegmentColors.Count - 1; i >= 0; i--)
-            {
-                if (collapseSegmentColors[i].Renderer == null)
-                {
-                    collapseSegmentColors.RemoveAt(i);
-                }
-            }
-        }
-
-        private int FindCollapseSegmentColor(
-            SpriteRenderer renderer)
-        {
-            for (int i = 0; i < collapseSegmentColors.Count; i++)
-            {
-                if (collapseSegmentColors[i].Renderer == renderer)
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        private static Vector2 GetCollapseWorldSize(TerrainEntity target)
-        {
-            if (target.PrimaryCollider != null)
-            {
-                return target.PrimaryCollider.bounds.size + new Vector3(0.5f, 0.5f, 0f);
-            }
-
-            return new Vector2(Mathf.Abs(target.transform.lossyScale.x), Mathf.Abs(target.transform.lossyScale.y));
-        }
-
-        private static void SetMarker(SpriteRenderer marker, Vector2 position, Vector3 worldScale)
-        {
-            if (marker == null)
-            {
-                return;
-            }
-
-            marker.transform.position = position;
-            Transform parent = marker.transform.parent;
-            Vector3 parentScale = parent != null ? parent.lossyScale : Vector3.one;
-            marker.transform.localScale = new Vector3(
-                SafeDivide(worldScale.x, parentScale.x),
-                SafeDivide(worldScale.y, parentScale.y),
-                SafeDivide(worldScale.z, parentScale.z));
-        }
-
-        private void EnsureMarkerSprite()
-        {
-            if (markerSprite != null)
-            {
-                return;
-            }
-
-            markerTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-            {
-                name = "Boss Telegraph Runtime Texture",
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp
-            };
-            markerTexture.SetPixel(0, 0, Color.white);
-            markerTexture.Apply();
-            markerSprite = Sprite.Create(markerTexture, new Rect(0f, 0f, 1f, 1f), Vector2.one * 0.5f, 1f);
-            markerSprite.name = "Boss Telegraph Runtime Sprite";
-        }
-
-        private static float SafeDivide(float value, float divisor)
-        {
-            return Mathf.Abs(divisor) > 0.0001f ? value / divisor : value;
-        }
-
-        private readonly struct CollapseSegmentColor
-        {
-            public readonly SpriteRenderer Renderer;
-            public readonly Color OriginalColor;
-
-            public CollapseSegmentColor(
-                SpriteRenderer renderer,
-                Color originalColor)
-            {
-                Renderer = renderer;
-                OriginalColor = originalColor;
-            }
+            return runtimeLineMaterial;
         }
     }
 }

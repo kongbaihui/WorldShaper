@@ -15,7 +15,8 @@ namespace Challenge2.TerrainPrototype
         [SerializeField] private SpriteRenderer _spriteRenderer;
         [SerializeField] private Color _damageFlashColor = Color.white;
 
-        private int _currentHealth = 50;
+        // UI 的 OnEnable 可能早于此组件的 Awake，使用非零值避免血条在初始化阶段误判死亡。
+        private int _currentHealth = 1;
         private Color _baseColor;
         private Coroutine _flashRoutine;
 
@@ -36,13 +37,6 @@ namespace Challenge2.TerrainPrototype
 
             _baseColor = _spriteRenderer != null ? _spriteRenderer.color : Color.white;
             ResetHealth();
-        }
-
-        public void Configure(TerrainOwner owner, int maximumHealth, SpriteRenderer spriteRenderer)
-        {
-            _owner = owner;
-            _maximumHealth = Mathf.Max(1, maximumHealth);
-            _spriteRenderer = spriteRenderer;
         }
 
         public bool TryApplyDamage(int amount, TerrainOwner attacker, Transform attackerTransform)

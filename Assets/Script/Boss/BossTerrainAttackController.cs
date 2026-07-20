@@ -59,8 +59,6 @@ namespace FinalGame.Boss
         private readonly RaycastHit2D[] raycastBuffer = new RaycastHit2D[32];
         private bool referencesReady;
 
-        public float DestructionRange => destructionRange;
-
         private void Awake()
         {
             if (bossTransform == null)
@@ -119,7 +117,6 @@ namespace FinalGame.Boss
                     AttackType = attackType,
                     SpawnPosition = center,
                     LandingPosition = center,
-                    AttackReferencePoint = player.position,
                     TelegraphDuration = shockwaveTelegraphDuration,
                     AttackRadius = shockwaveRadius
                 };
@@ -140,7 +137,6 @@ namespace FinalGame.Boss
                     CollapseTarget = collapseTarget,
                     SpawnPosition = collapseTarget.transform.position,
                     LandingPosition = collapseTarget.transform.position,
-                    AttackReferencePoint = player.position,
                     TelegraphDuration = collapseTelegraphDuration
                 };
                 return true;
@@ -203,7 +199,6 @@ namespace FinalGame.Boss
             {
                 AttackType = attackType,
                 SpawnPosition = validPosition,
-                AttackReferencePoint = referencePoint,
                 LandingPosition = landingPosition,
                 TelegraphDuration = telegraphDuration
             };
@@ -216,59 +211,6 @@ namespace FinalGame.Boss
             {
                 telegraph.Show(plan);
             }
-        }
-
-        public bool RefreshTrackedAttack(BossAttackPlan plan)
-        {
-            if (plan == null || !referencesReady || bossDamageable == null || !bossDamageable.IsAlive)
-            {
-                return false;
-            }
-
-            TerrainType terrainType;
-            float predictionTime;
-
-            switch (plan.AttackType)
-            {
-                case BossAttackType.FallingStoneWall:
-                    terrainType = TerrainType.FallingStoneWall;
-                    predictionTime = wallPredictionTime;
-                    break;
-
-                case BossAttackType.FallingStoneSpike:
-                    terrainType = TerrainType.FallingStoneSpike;
-                    predictionTime = spikePredictionTime;
-                    break;
-
-                case BossAttackType.TerrainCollapse:
-                    return plan.CollapseTarget != null && !plan.CollapseTarget.IsBeingDestroyed &&
-                           IsStillRegistered(plan.CollapseTarget);
-
-                default:
-                    return true;
-            }
-
-            Vector2 referencePoint = PredictPlayerPosition(predictionTime);
-            // 2026-07-19：预警期间只继续追踪 X，Y 使用本次攻击抽到的高度。
-            Vector2 requestedPosition = ClampFallingSpawnAtHeight(
-                terrainType,
-                referencePoint.x,
-                plan.SpawnPosition.y);
-
-            if (!TryFindValidPosition(terrainType, requestedPosition, out Vector2 validPosition))
-            {
-                return false;
-            }
-
-            plan.AttackReferencePoint = referencePoint;
-            plan.SpawnPosition = validPosition;
-            plan.LandingPosition = FindLandingPosition(validPosition);
-            if (telegraph != null)
-            {
-                telegraph.UpdateTracking(plan);
-            }
-
-            return true;
         }
 
         public bool Execute(BossAttackPlan plan)
