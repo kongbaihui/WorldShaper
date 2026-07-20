@@ -15,7 +15,7 @@ public class StrengthBarScrip : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        float TargetNum = TheHero.GetComponent<heroscrip>().BulletSpeed / TheHero.GetComponent<heroscrip>().MaxBulletSpeed;
+        float TargetNum = (TheHero.GetComponent<heroscrip>().BulletSpeed - TheHero.GetComponent<heroscrip>().BulletInitialSpeed) / (TheHero.GetComponent<heroscrip>().MaxBulletSpeed - TheHero.GetComponent<heroscrip>().BulletInitialSpeed);
         ChangeBarTo(TargetNum * 100f);
 
         if (TargetNum >= 1)

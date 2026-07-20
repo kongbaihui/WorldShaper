@@ -18,11 +18,15 @@ public class heroscrip : MonoBehaviour
     public bool IsMelee = false;
     public float MeleeRange = 2f;
     //used in shoot block
-    public float MaxBulletSpeed = 50f;
-    public float BulletSpeed = 0f;
+    public float MaxBulletSpeed = 100f;
+    public float BulletSpeed = 40f;
+    public float BulletInitialSpeed = 40f;
     private bool HaveArrowInStay = false;
 
     //end use
+    //USED BY ANIMATION
+    private bool HadJump = false;
+    //END USE
 
     [Header("Ground Detection")]
     [Tooltip("Layers that can be queried below the Hero. Ground and Breakable are enabled by default.")]
@@ -61,14 +65,26 @@ public class heroscrip : MonoBehaviour
         //control -x
         if (Keyboard.current.aKey.isPressed)
         {
+            GetComponent<SpriteRenderer>().flipX = true;
+            GiveAnimationRun(true);
             float tempYSpeed = HeroPhysics.velocity.y;
             HeroPhysics.velocity = new Vector2(-xSpeed, tempYSpeed);
+        }
+        else if (!Keyboard.current.dKey.isPressed)
+        {
+            GiveAnimationRun(false);
         }
         //control x
         if (Keyboard.current.dKey.isPressed)
         {
+            GetComponent<SpriteRenderer>().flipX = false;
+            GiveAnimationRun(true);
             float tempYSpeed = HeroPhysics.velocity.y;
             HeroPhysics.velocity = new Vector2(xSpeed, tempYSpeed);
+        }
+        else if (!Keyboard.current.aKey.isPressed)
+        {
+            GiveAnimationRun(false);
         }
         bool onGround = OnTheGround();
 
@@ -77,8 +93,29 @@ public class heroscrip : MonoBehaviour
         {
             if (Keyboard.current.spaceKey.isPressed && !Keyboard.current.sKey.isPressed)
             {
+                GiveAnimationJump(true);
+                HadJump = true;
                 float tempXSpeed = HeroPhysics.velocity.x;
                 HeroPhysics.velocity = new Vector2(tempXSpeed, ySpeed);
+            }
+            else
+            {
+                if (HadJump)
+                {
+                    GiveAnimationJump(false);
+                    HadJump = false;
+                }
+                else
+                {
+                    GetComponent<Animator>().SetBool("Fall", false);
+                }
+            }
+        }
+        else //give animation of falling
+        {
+            if (!HadJump)
+            {
+                GetComponent<Animator>().SetBool("Fall", true);
             }
         }
 
@@ -97,14 +134,16 @@ public class heroscrip : MonoBehaviour
                 {
                     if (Mouse.current.leftButton.isPressed)
                     {
+                        GiveAnimationBowAttack(true);
                         if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
                         HaveArrowInStay = true;
-                        if (BulletSpeed < MaxBulletSpeed) { BulletSpeed += 0.1f; }
+                        if (BulletSpeed < MaxBulletSpeed) { BulletSpeed += 0.2f; }
                     }
                     else
                     {
                         if (HaveArrowInStay)
                         {
+                            GiveAnimationBowAttack(false);
                             ShootArrow(BulletSpeed);
                             BulletSpawnAt = Time.time;
                             CleanNotMeleeState();
@@ -121,8 +160,24 @@ public class heroscrip : MonoBehaviour
                     // check interval
                     if ((Time.time - BulletSpawnAt) > ShootInterval)
                     {
+                        GiveAnimationMeleeAttack();
+
                         MeleeAttack();
                         BulletSpawnAt = Time.time;
+                    }
+                }
+                //check clip info to control towards of texture
+                AnimatorStateInfo stateInfo = GetComponent<Animator>().GetCurrentAnimatorStateInfo(0);
+                bool isPlaying = (stateInfo.IsName("AttackMove1") || stateInfo.IsName("AttackMove2") || stateInfo.IsName("AttackMove3"));
+                if (isPlaying)
+                {
+                    if (TheArrow.transform.up.x < 0)
+                    {
+                        GetComponent<SpriteRenderer>().flipX = true;
+                    }
+                    else
+                    {
+                        GetComponent<SpriteRenderer>().flipX = false;
                     }
                 }
             }
@@ -283,6 +338,81 @@ public class heroscrip : MonoBehaviour
     private void CleanNotMeleeState()
     {
         HaveArrowInStay = false;
-        BulletSpeed = 0;
+        BulletSpeed = BulletInitialSpeed;
+        GiveAnimationBowAttack(false);
     }
+    public void GiveAnimationRun(bool Runing)
+    {
+        if (Runing)
+        {
+            GetComponent<Animator>().SetBool("Run", true);
+        }
+        else
+        {
+            GetComponent<Animator>().SetBool("Run", false);
+        }
+    }
+    public void GiveAnimationJump(bool Jumping)
+    {
+        if (Jumping)
+        {
+
+            GetComponent<Animator>().SetBool("Jump", true);
+        }
+        else
+        {
+
+            GetComponent<Animator>().SetBool("Jump", false);
+        }
+    }
+    public void GiveAnimationMeleeAttack()
+    {
+        if (Mathf.Abs(TheArrow.transform.up.x) > Mathf.Abs(TheArrow.transform.up.y))
+        {
+            GetComponent<Animator>().SetTrigger("MeleeAttack");
+        }
+        else
+        {
+            if (TheArrow.transform.up.y > 0)
+            {
+                GetComponent<Animator>().SetTrigger("MeleeAttackUp");
+            }
+            else
+            {
+                GetComponent<Animator>().SetTrigger("MeleeAttackDown");
+            }
+        }
+        if (TheArrow.transform.up.x < 0)
+        {
+            GetComponent<SpriteRenderer>().flipX = true;
+        }
+        else
+        {
+            GetComponent<SpriteRenderer>().flipX = false;
+        }
+    }
+
+    public void GiveAnimationBowAttack(bool Holding)
+    {
+        if (Holding)
+        {
+            GetComponent<Animator>().SetBool("BowHold", true);
+        }
+        else
+        {
+            GetComponent<Animator>().SetBool("BowHold", false);
+        }
+        if (Holding)
+        {
+            if (TheArrow.transform.up.x < 0)
+            {
+                GetComponent<SpriteRenderer>().flipX = true;
+            }
+            else
+            {
+                GetComponent<SpriteRenderer>().flipX = false;
+            }
+        }
+    }
+
 }
