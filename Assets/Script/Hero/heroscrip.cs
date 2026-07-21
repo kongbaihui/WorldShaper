@@ -22,6 +22,7 @@ public class heroscrip : MonoBehaviour
     public float BulletSpeed = 40f;
     public float BulletInitialSpeed = 40f;
     private bool HaveArrowInStay = false;
+    public float ChargeSpeed = 60f;
 
     //end use
     //USED BY ANIMATION
@@ -139,7 +140,8 @@ public class heroscrip : MonoBehaviour
                         GiveAnimationBowAttack(true);
                         if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
                         HaveArrowInStay = true;
-                        if (BulletSpeed < MaxBulletSpeed) { BulletSpeed += 0.1f; }
+                        float addValue = ChargeSpeed * Time.deltaTime;
+                        BulletSpeed = Mathf.Min(BulletSpeed + addValue, MaxBulletSpeed);
                     }
                     else
                     {

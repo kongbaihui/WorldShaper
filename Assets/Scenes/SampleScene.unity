@@ -2743,6 +2743,7 @@ MonoBehaviour:
   MaxBulletSpeed: 100
   BulletSpeed: 25
   BulletInitialSpeed: 25
+  ChargeSpeed: 60
   jumpableLayers:
     serializedVersion: 2
     m_Bits: 192
