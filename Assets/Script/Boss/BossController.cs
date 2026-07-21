@@ -158,7 +158,6 @@ namespace FinalGame.Boss
 
             DistanceToPlayer = Vector2.Distance(transform.position, player.position);
             IsPlayerInsideActivationRange = DistanceToPlayer <= activationRange;
-            TrackPlayerVisually();
 
             if (!IsPlayerInsideActivationRange &&
                 CurrentState != BossState.PhaseTransition &&
@@ -462,14 +461,6 @@ namespace FinalGame.Boss
             }
 
             CurrentAttack = BossAttackType.None;
-        }
-
-        private void TrackPlayerVisually()
-        {
-            if (bossRenderer != null && player != null)
-            {
-                bossRenderer.flipX = player.position.x < transform.position.x;
-            }
         }
 
         private void RestorePhasePresentation()
