@@ -8,33 +8,36 @@ body {
     background: black;
 }
 
-#unity-container {
+#unity-container,
+#unity-container.unity-desktop {
     position: fixed;
     inset: 0;
+
+    width: 100%;
+    height: 100%;
 
     display: flex;
     justify-content: center;
     align-items: center;
-}
 
-#unity-container.unity-desktop {
-    width: 100%;
-    height: 100%;
+    overflow: hidden;
     transform: none;
 }
 
 #unity-container.unity-mobile {
+    position: fixed;
+    inset: 0;
+
     width: 100%;
     height: 100%;
 }
 
 #unity-canvas {
     display: block;
-
-    width: min(100vw, calc(100vh * 16 / 9));
-    height: min(100vh, calc(100vw * 9 / 16));
+    flex: none;
 
     background: #231f20;
+    outline: none;
 }
 
 .unity-mobile #unity-canvas {
@@ -46,32 +49,48 @@ body {
     position: absolute;
     left: 50%;
     top: 50%;
+
     transform: translate(-50%, -50%);
     display: none;
+
+    z-index: 10;
 }
 
 #unity-logo {
     width: 154px;
     height: 130px;
-    background: url("unity-logo-dark.png") no-repeat center;
+
+    background:
+        url("unity-logo-dark.png")
+        no-repeat
+        center;
 }
 
 #unity-progress-bar-empty {
     width: 141px;
     height: 18px;
+
     margin-top: 10px;
     margin-left: 6.5px;
-    background: url("progress-bar-empty-dark.png") no-repeat center;
+
+    background:
+        url("progress-bar-empty-dark.png")
+        no-repeat
+        center;
 }
 
 #unity-progress-bar-full {
     width: 0%;
     height: 18px;
+
     margin-top: 10px;
-    background: url("progress-bar-full-dark.png") no-repeat center;
+
+    background:
+        url("progress-bar-full-dark.png")
+        no-repeat
+        center;
 }
 
-/* 先隐藏底部栏，避免把画面挤偏 */
 #unity-footer {
     display: none;
 }
@@ -80,9 +99,12 @@ body {
     position: absolute;
     left: 50%;
     top: 5%;
+
     transform: translateX(-50%);
-    background: white;
+
+    max-width: 80%;
     padding: 10px;
+
     display: none;
-    z-index: 10;
+    z-index: 20;
 }
