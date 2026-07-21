@@ -87,7 +87,12 @@ public class bulletscrip : MonoBehaviour
             }
         }
 
-        if (collision.gameObject.layer == 6 || collision.gameObject.layer == 7)
+        if (collision.gameObject.layer == 6)
+        {
+            Destroy(gameObject);
+        }
+
+        if(collision.gameObject.layer == 7)
         {
             DestroySelf();
         }

@@ -18,7 +18,7 @@ public class Weapon1 : MonoBehaviour
     {
         if (TheHero.GetComponent<heroscrip>().IsMelee)
         {
-            MySR.color = new Color(0f, 1f, 0f, 1f);
+            MySR.color = new Color(1f, 1f, 1f, 1f);
         }
         else
         {

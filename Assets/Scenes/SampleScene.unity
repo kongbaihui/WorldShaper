@@ -921,7 +921,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 76d5d3e178235b54788ec5a3cd05c027, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -942,7 +942,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -68, y: -40, z: 0}
-  m_LocalScale: {x: 5, y: 5, z: 1}
+  m_LocalScale: {x: 10, y: 10, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1479058774}
@@ -959,7 +959,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b995466f5c7e9d64dba3dc476e1dd075, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  TheHero: {fileID: 0}
+  TheHero: {fileID: 1579738101}
 --- !u!1 &665974159
 GameObject:
   m_ObjectHideFlags: 0
@@ -1556,7 +1556,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 66aa84d8216bda64e9f638cef9b9f904, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1577,7 +1577,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -75, y: -40, z: 0}
-  m_LocalScale: {x: 5, y: 5, z: 1}
+  m_LocalScale: {x: 10, y: 10, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1479058774}
@@ -1594,7 +1594,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 28bc85b15d7ca9141af7bcb6a70cc83b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  TheHero: {fileID: 0}
+  TheHero: {fileID: 1579738101}
 --- !u!1 &1029755174
 GameObject:
   m_ObjectHideFlags: 0
@@ -1742,7 +1742,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _owner: 2
-  _maximumHealth: 30
+  _maximumHealth: 50
   _spriteRenderer: {fileID: 2140000120}
   _damageFlashColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &1098588139
@@ -2439,7 +2439,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _owner: 2
-  _maximumHealth: 30
+  _maximumHealth: 50
   _spriteRenderer: {fileID: 2140000121}
   _damageFlashColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &1479058773
@@ -2734,15 +2734,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a53f81687092ed34dac8f0dd5f13f54d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ShootInterval: 1
+  ShootInterval: 0.7
   xSpeed: 20
   ySpeed: 50
   TheArrow: {fileID: 0}
   IsMelee: 0
   MeleeRange: 5
   MaxBulletSpeed: 100
-  BulletSpeed: 40
-  BulletInitialSpeed: 40
+  BulletSpeed: 25
+  BulletInitialSpeed: 25
   jumpableLayers:
     serializedVersion: 2
     m_Bits: 192
@@ -3810,7 +3810,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _owner: 2
-  _maximumHealth: 100
+  _maximumHealth: 150
   _spriteRenderer: {fileID: 2140000102}
   _damageFlashColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &1949078764
@@ -4561,7 +4561,7 @@ MonoBehaviour:
   activationRange: 90
   closeDistanceThreshold: 15
   farDistanceThreshold: 32
-  recoveryDuration: 1.15
+  recoveryDuration: 1
   unavailableRecoveryDuration: 0.7
   hurtDuration: 0.25
   hurtRecoveryDuration: 0.55

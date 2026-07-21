@@ -8,6 +8,7 @@ public class StartMenu : MonoBehaviour
     [SerializeField] private string GameScene = "GameScene";
 
     [SerializeField] private GameObject guidePanel;
+    [SerializeField] private GameObject creditPanel;
     // Start is called before the first frame update
     void Start()
     {
@@ -48,6 +49,24 @@ public class StartMenu : MonoBehaviour
         if (guidePanel != null)
         {
             guidePanel.SetActive(false);
+        }
+    }
+
+    //致谢界面按钮调用
+    public void OpenCredit()
+    {
+        if (creditPanel != null)
+        {
+            creditPanel.SetActive(true);
+        }
+    }
+
+    // 致谢界面的返回按钮调用
+    public void CloseCredit()
+    {
+        if (creditPanel != null)
+        {
+            creditPanel.SetActive(false);
         }
     }
 

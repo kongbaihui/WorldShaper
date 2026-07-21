@@ -137,7 +137,7 @@ namespace FinalGame.Boss
             trackedCollapseMarker = null;
         }
 
-        // 课程版不再额外生成冲击波命中特效，攻击前的圆环已经表达范围。
+        // 不再额外生成冲击波命中特效，攻击前的圆环已经表达范围。
         public void PlayShockwaveImpact(Vector2 center, float radius)
         {
         }
@@ -183,7 +183,7 @@ namespace FinalGame.Boss
                 : Vector2.one * 2f;
             Vector2 size = new Vector2(
                 terrainSize.x + landingAreaPadding,
-                Mathf.Max(0.25f, terrainSize.y * 0.15f));
+                Mathf.Max(0.4f, terrainSize.y * 0.15f));
             CreateMarker(position, size, sprite, color);
         }
 
