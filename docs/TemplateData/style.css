@@ -8,31 +8,32 @@ body {
     background: black;
 }
 
-#unity-container,
-#unity-container.unity-desktop {
+#unity-container {
     position: fixed;
     inset: 0;
-    width: 100%;
-    height: 100%;
 
     display: flex;
     justify-content: center;
     align-items: center;
+}
 
+#unity-container.unity-desktop {
+    width: 100%;
+    height: 100%;
     transform: none;
 }
 
 #unity-container.unity-mobile {
-    position: fixed;
-    inset: 0;
     width: 100%;
     height: 100%;
 }
 
 #unity-canvas {
     display: block;
+
     width: min(100vw, calc(100vh * 16 / 9));
     height: min(100vh, calc(100vw * 9 / 16));
+
     background: #231f20;
 }
 
@@ -70,7 +71,7 @@ body {
     background: url("progress-bar-full-dark.png") no-repeat center;
 }
 
-/* 隐藏底部 Unity 栏，避免挤压画面 */
+/* 先隐藏底部栏，避免把画面挤偏 */
 #unity-footer {
     display: none;
 }
