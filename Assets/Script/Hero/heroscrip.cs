@@ -62,7 +62,7 @@ public class heroscrip : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+
         float horizontalInput = 0f;
         //control -x
         if (Keyboard.current.aKey.isPressed)
@@ -139,7 +139,7 @@ public class heroscrip : MonoBehaviour
                         GiveAnimationBowAttack(true);
                         if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
                         HaveArrowInStay = true;
-                        if (BulletSpeed < MaxBulletSpeed) { BulletSpeed += 0.2f; }
+                        if (BulletSpeed < MaxBulletSpeed) { BulletSpeed += 0.1f; }
                     }
                     else
                     {
@@ -299,6 +299,18 @@ public class heroscrip : MonoBehaviour
         Rigidbody2D BulletPhysics = bullet.GetComponent<Rigidbody2D>();
         BulletPhysics.velocity = nomvct.normalized * BulletSpeed;
 
+        if (BulletSpeed >= MaxBulletSpeed)
+        {
+            bullet.GetComponent<bulletscrip>().ThroughTime = 2;
+        }
+        else if (BulletSpeed >= (MaxBulletSpeed + BulletInitialSpeed) / 2)
+        {
+            bullet.GetComponent<bulletscrip>().ThroughTime = 1;
+        }
+        else
+        {
+            bullet.GetComponent<bulletscrip>().ThroughTime = 0;
+        }
         bulletscrip bulletDamage = bullet.GetComponent<bulletscrip>();
         if (bulletDamage != null)
         {

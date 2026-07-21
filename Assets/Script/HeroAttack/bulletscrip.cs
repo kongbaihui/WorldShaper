@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class bulletscrip : MonoBehaviour
 {
+    public int ThroughTime = 0;
     [SerializeField, Min(1)] private int damage = 10;
     [SerializeField, Min(1)] private int terrainDamage = 1;
 
@@ -67,7 +68,7 @@ public class bulletscrip : MonoBehaviour
                         attacker));
             if (damageApplied)
             {
-                Destroy(gameObject);
+                DestroySelf();
                 return;
             }
         }
@@ -81,14 +82,26 @@ public class bulletscrip : MonoBehaviour
                     attackerTransform != null ? attackerTransform : transform))
             {
                 hasDamagedActor = true;
-                Destroy(gameObject);
+                DestroySelf();
                 return;
             }
         }
 
         if (collision.gameObject.layer == 6 || collision.gameObject.layer == 7)
         {
+            DestroySelf();
+        }
+    }
+
+    private void DestroySelf()
+    {
+        if (ThroughTime == 0)
+        {
             Destroy(gameObject);
+        }
+        else
+        {
+            ThroughTime--;
         }
     }
 }
