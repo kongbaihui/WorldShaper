@@ -99,7 +99,7 @@ public sealed class PlayerTerrainController :
          * L 只切换创造模式。
          * 不会消耗创造次数。
          */
-        if (keyboard.lKey
+        if (mouse.rightButton
             .wasPressedThisFrame)
         {
             SetBuildMode(

@@ -16,6 +16,7 @@ namespace FinalGame.Boss
         [SerializeField] private Transform telegraphRoot;
 
         [Header("Presentation")]
+        [SerializeField] private Sprite fallingTerrainWarningSprite;
         [SerializeField] private Sprite markerSprite;
         [SerializeField] private Material lineMaterial;
         [SerializeField] private Color platformColor = new Color(0.15f, 0.95f, 1f, 0.55f);
@@ -173,18 +174,36 @@ namespace FinalGame.Boss
             CreateMarker(position, size, sprite, color);
         }
 
-        private void CreateLandingMarker(TerrainType terrainType, Vector2 position, Color color)
+        private void CreateLandingMarker(
+            TerrainType terrainType,
+            Vector2 position,
+            Color color)
         {
-            Sprite sprite = creationService != null
-                ? creationService.GetPreviewSprite(terrainType)
+            Sprite sprite = fallingTerrainWarningSprite != null
+                ? fallingTerrainWarningSprite
                 : markerSprite;
+
             Vector2 terrainSize = creationService != null
                 ? creationService.GetTerrainWorldSize(terrainType)
                 : Vector2.one * 2f;
+
+            // Vector2 size = new Vector2(
+            //     terrainSize.x + landingAreaPadding,
+            //     Mathf.Max(0.4f, terrainSize.y * 0.15f));
+
+            float width =
+                terrainSize.x + landingAreaPadding;
+
+            float aspectRatio =
+                sprite != null
+                    ? sprite.bounds.size.x /
+                    Mathf.Max(0.0001f, sprite.bounds.size.y)
+                    : 1f;
+
             Vector2 size = new Vector2(
-                terrainSize.x + landingAreaPadding,
-                Mathf.Max(0.4f, terrainSize.y * 0.15f));
-            CreateMarker(position, size, sprite, color);
+                width,
+                width / aspectRatio);
+            CreateMarker(position, size, sprite, Color.white);
         }
 
         private void CreateCollapseMarker(TerrainEntity target)

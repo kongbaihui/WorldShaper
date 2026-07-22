@@ -396,6 +396,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   creationService: {fileID: 1098588142}
   telegraphRoot: {fileID: 1098588140}
+  fallingTerrainWarningSprite: {fileID: 0}
   markerSprite: {fileID: 0}
   lineMaterial: {fileID: 0}
   platformColor: {r: 0.15, g: 0.95, b: 1, a: 0.55}
@@ -1817,7 +1818,7 @@ MonoBehaviour:
   _fallingStoneWallPrefab: {fileID: 3683818260807072209, guid: 130d6d35139ae9b469662136f72ea209, type: 3}
   _fallingStoneSpikePrefab: {fileID: 9158983603720121162, guid: 286793fa74c4a3143b4bd44a56b5142b, type: 3}
   _arenaCenter: {x: 0, y: 7.5}
-  _arenaSize: {x: 156, y: 71}
+  _arenaSize: {x: 156, y: 74}
   _gridSize: 0.5
   _creationCooldown: 0.25
   _maximumCreationDistance: 40
@@ -4492,6 +4493,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   creationService: {fileID: 1098588142}
   telegraphRoot: {fileID: 1098588140}
+  fallingTerrainWarningSprite: {fileID: 21300000, guid: 4cf7c83659901c849937e8d34c6757e6, type: 3}
   markerSprite: {fileID: 0}
   lineMaterial: {fileID: 0}
   platformColor: {r: 0.15, g: 0.95, b: 1, a: 0.55}

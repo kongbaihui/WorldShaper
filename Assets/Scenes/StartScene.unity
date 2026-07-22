@@ -633,27 +633,27 @@ MonoBehaviour:
     Mouse            Aim
 
     Left
-    Mouse       Attack
+    Mouse     Attack
 
-    C                Switch Weapon
+    C                   Switch Weapon
 
 
     Terrain Creation
 
-    L               
-    Toggle Build Mode
+    Right
+    Mouse   Toggle Build Mode
 
-    1                Floating Platform
+    1                    Floating Platform
 
-    2               
+    2                   
     Stone Wall
 
-    3                Stone Spike
+    3                    Stone Spike
 
 
     Menu
 
-    Esc             
+    Esc               
     Back'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -748,7 +748,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &704713550
 RectTransform:
   m_ObjectHideFlags: 0
