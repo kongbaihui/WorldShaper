@@ -29,6 +29,10 @@ public class heroscrip : MonoBehaviour
     private bool HadJump = false;
     //END USE
 
+    //use by bow arrow num
+    public int RemainNum = 3;
+    //end use
+
     [Header("Ground Detection")]
     [Tooltip("Layers that can be queried below the Hero. Ground and Breakable are enabled by default.")]
     [SerializeField] private LayerMask jumpableLayers = (1 << 6) | (1 << 7);
@@ -135,24 +139,29 @@ public class heroscrip : MonoBehaviour
                 // check interval
                 if ((Time.time - BulletSpawnAt) > ShootInterval)
                 {
-                    if (Mouse.current.leftButton.isPressed)
+                    if (RemainNum > 0)
                     {
-                        GiveAnimationBowAttack(true);
-                        if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
-                        HaveArrowInStay = true;
-                        float addValue = ChargeSpeed * Time.deltaTime;
-                        BulletSpeed = Mathf.Min(BulletSpeed + addValue, MaxBulletSpeed);
-                    }
-                    else
-                    {
-                        if (HaveArrowInStay)
+                        if (Mouse.current.leftButton.isPressed)
                         {
-                            GiveAnimationBowAttack(false);
-                            ShootArrow(BulletSpeed);
-                            BulletSpawnAt = Time.time;
-                            CleanNotMeleeState();
+                            GiveAnimationBowAttack(true);
+                            if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
+                            HaveArrowInStay = true;
+                            float addValue = ChargeSpeed * Time.deltaTime;
+                            BulletSpeed = Mathf.Min(BulletSpeed + addValue, MaxBulletSpeed);
+                        }
+                        else
+                        {
+                            if (HaveArrowInStay)
+                            {
+                                GiveAnimationBowAttack(false);
+                                ShootArrow(BulletSpeed);
+                                BulletSpawnAt = Time.time;
+                                CleanNotMeleeState();
+                                RemainNum--;
+                            }
                         }
                     }
+
                 }
 
             }
