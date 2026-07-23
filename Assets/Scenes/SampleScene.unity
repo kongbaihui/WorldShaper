@@ -2746,6 +2746,7 @@ MonoBehaviour:
   BulletInitialSpeed: 25
   ChargeSpeed: 60
   RemainNum: 3
+  IsShootLine: 0
   jumpableLayers:
     serializedVersion: 2
     m_Bits: 192

@@ -33,6 +33,10 @@ public class heroscrip : MonoBehaviour
     public int RemainNum = 3;
     //end use
 
+    //used by unmove shoot line
+    public bool IsShootLine = false;
+    //end use
+
     [Header("Ground Detection")]
     [Tooltip("Layers that can be queried below the Hero. Ground and Breakable are enabled by default.")]
     [SerializeField] private LayerMask jumpableLayers = (1 << 6) | (1 << 7);
@@ -96,7 +100,7 @@ public class heroscrip : MonoBehaviour
         bool onGround = OnTheGround();
 
         //control y
-        if (onGround)
+        if (onGround && !HaveArrowInStay && !IsShootLine)
         {
             if (Keyboard.current.spaceKey.isPressed && !Keyboard.current.sKey.isPressed)
             {
@@ -118,7 +122,7 @@ public class heroscrip : MonoBehaviour
                 }
             }
         }
-        else //give animation of falling
+        else if (!onGround)//give animation of falling
         {
             if (!HadJump)
             {
@@ -133,66 +137,75 @@ public class heroscrip : MonoBehaviour
         //change by chu at 7/18/16:00 为远程攻击增加蓄力及滞空
         if (canAttack)
         {
-            if (!IsMelee)
+            if (!Keyboard.current.eKey.wasPressedThisFrame)
             {
-                CleanMeleeState();
-                // check interval
-                if ((Time.time - BulletSpawnAt) > ShootInterval)
+                if (!IsMelee)
                 {
-                    if (RemainNum > 0)
-                    {
-                        if (Mouse.current.leftButton.isPressed)
-                        {
-                            GiveAnimationBowAttack(true);
-                            if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
-                            HaveArrowInStay = true;
-                            float addValue = ChargeSpeed * Time.deltaTime;
-                            BulletSpeed = Mathf.Min(BulletSpeed + addValue, MaxBulletSpeed);
-                        }
-                        else
-                        {
-                            if (HaveArrowInStay)
-                            {
-                                GiveAnimationBowAttack(false);
-                                ShootArrow(BulletSpeed);
-                                BulletSpawnAt = Time.time;
-                                CleanNotMeleeState();
-                                RemainNum--;
-                            }
-                        }
-                    }
-
-                }
-
-            }
-            else
-            {
-                CleanNotMeleeState();
-                if (Mouse.current.leftButton.wasPressedThisFrame)
-                {
+                    CleanMeleeState();
                     // check interval
                     if ((Time.time - BulletSpawnAt) > ShootInterval)
                     {
-                        GiveAnimationMeleeAttack();
+                        if (RemainNum > 0)
+                        {
+                            if (Mouse.current.leftButton.isPressed)
+                            {
+                                GiveAnimationBowAttack(true);
+                                if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
+                                HaveArrowInStay = true;
+                                float addValue = ChargeSpeed * Time.deltaTime;
+                                BulletSpeed = Mathf.Min(BulletSpeed + addValue, MaxBulletSpeed);
+                            }
+                            else
+                            {
+                                if (HaveArrowInStay)
+                                {
+                                    GiveAnimationBowAttack(false);
+                                    ShootArrow(BulletSpeed);
+                                    BulletSpawnAt = Time.time;
+                                    CleanNotMeleeState();
+                                    RemainNum--;
+                                }
+                            }
+                        }
 
-                        MeleeAttack();
-                        BulletSpawnAt = Time.time;
                     }
+
                 }
-                //check clip info to control towards of texture
-                AnimatorStateInfo stateInfo = GetComponent<Animator>().GetCurrentAnimatorStateInfo(0);
-                bool isPlaying = (stateInfo.IsName("AttackMove1") || stateInfo.IsName("AttackMove2") || stateInfo.IsName("AttackMove3"));
-                if (isPlaying)
+                else
                 {
-                    if (TheArrow.transform.up.x < 0)
+                    CleanNotMeleeState();
+                    if (Mouse.current.leftButton.wasPressedThisFrame)
                     {
-                        GetComponent<SpriteRenderer>().flipX = true;
+                        // check interval
+                        if ((Time.time - BulletSpawnAt) > ShootInterval)
+                        {
+                            GiveAnimationMeleeAttack();
+
+                            MeleeAttack();
+                            BulletSpawnAt = Time.time;
+                        }
                     }
-                    else
+                    //check clip info to control towards of texture
+                    AnimatorStateInfo stateInfo = GetComponent<Animator>().GetCurrentAnimatorStateInfo(0);
+                    bool isPlaying = (stateInfo.IsName("AttackMove1") || stateInfo.IsName("AttackMove2") || stateInfo.IsName("AttackMove3"));
+                    if (isPlaying)
                     {
-                        GetComponent<SpriteRenderer>().flipX = false;
+                        if (TheArrow.transform.up.x < 0)
+                        {
+                            GetComponent<SpriteRenderer>().flipX = true;
+                        }
+                        else
+                        {
+                            GetComponent<SpriteRenderer>().flipX = false;
+                        }
                     }
                 }
+            }
+            else
+            {
+                ShootLine();
+                IsShootLine = true;
+
             }
         }
         //control drop
@@ -218,7 +231,11 @@ public class heroscrip : MonoBehaviour
             IsMelee = !IsMelee;
         }
 
-
+        //shoot line unmove
+        if (IsShootLine)
+        {
+            HeroPhysics.velocity = new Vector2(0, 0);
+        }
 
     }
     //return whether on the ground
@@ -438,6 +455,13 @@ public class heroscrip : MonoBehaviour
                 GetComponent<SpriteRenderer>().flipX = false;
             }
         }
+    }
+
+    private void ShootLine()
+    {
+        GameObject line = Instantiate(Resources.Load("PreFabs/Line") as GameObject);
+        line.transform.up = TheArrow.transform.up;
+        line.transform.localPosition = transform.position + line.transform.up;
     }
 
 }
