@@ -910,7 +910,7 @@ Transform:
   m_GameObject: {fileID: 388747158}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -64.4, y: 55.6, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 20.037998, y: 19.845999, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1500,7 +1500,7 @@ Transform:
   m_GameObject: {fileID: 678282593}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -27, y: 39, z: 0}
+  m_LocalPosition: {x: -27, y: 43, z: 0}
   m_LocalScale: {x: 3, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1600,7 +1600,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 10
-  m_Sprite: {fileID: 21300000, guid: d46b6641aa7ce2e48a5fd970cbd6077c, type: 3}
+  m_Sprite: {fileID: 21300000, guid: a55b5fe31f7f2f74592b9eb78161b3e3, type: 3}
   m_Color: {r: 1, g: 0.85, b: 0.1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -4209,7 +4209,7 @@ Transform:
   m_GameObject: {fileID: 1815446025}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 27, y: 39, z: 0}
+  m_LocalPosition: {x: 27, y: 43, z: 0}
   m_LocalScale: {x: 3, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4309,7 +4309,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 10
-  m_Sprite: {fileID: 21300000, guid: d46b6641aa7ce2e48a5fd970cbd6077c, type: 3}
+  m_Sprite: {fileID: 21300000, guid: a55b5fe31f7f2f74592b9eb78161b3e3, type: 3}
   m_Color: {r: 1, g: 0.85, b: 0.1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -5043,7 +5043,7 @@ Transform:
   m_GameObject: {fileID: 1939778396}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -25, z: 0}
+  m_LocalPosition: {x: -68.3, y: 17.9, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -5652,7 +5652,7 @@ MonoBehaviour:
   laserTelegraphTime: 0.55
   laserAimMaximumTime: 1.5
   laserGrowTime: 0.45
-  laserDuration: 2
+  laserDuration: 0.5
   laserDamage: 18
   laserTerrainDamage: 2
   laserWidth: 2
@@ -6152,7 +6152,7 @@ Transform:
   m_GameObject: {fileID: 2132354368}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 3.5, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -142,8 +142,17 @@ public sealed class PlayerTerrainController :
         if (mouse.leftButton
             .wasPressedThisFrame)
         {
-            TryCreateTerrain(
-                snappedPosition);
+            /*
+             * 钩锁与创造共用左键。
+             * 点击钩锁时由 GrappleHook 优先处理，
+             * 避免创造模式吞掉这次交互。
+             */
+            if (!IsPointerOverGrappleHook(
+                    mouseWorldPosition))
+            {
+                TryCreateTerrain(
+                    snappedPosition);
+            }
         }
 
         ///*
@@ -256,6 +265,29 @@ public sealed class PlayerTerrainController :
             createManager
                 .ConsumeCreateCharge();
         }
+    }
+
+    private static bool IsPointerOverGrappleHook(
+        Vector2 worldPosition)
+    {
+        Collider2D[] hits =
+            Physics2D.OverlapPointAll(
+                worldPosition);
+
+        for (int i = 0;
+             i < hits.Length;
+             i++)
+        {
+            Collider2D hit = hits[i];
+
+            if (hit != null &&
+                hit.GetComponentInParent<GrappleHook>() != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void TryDamageTerrain(

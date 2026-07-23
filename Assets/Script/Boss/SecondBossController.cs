@@ -1416,7 +1416,7 @@ public class SecondBossController : MonoBehaviour
         }
 
         originObject.transform.SetParent(transform);
-        originObject.transform.localPosition = new Vector3(0f, 2.5f, 0f);
+        originObject.transform.localPosition = new Vector3(0f, 0f, 0f);
         originObject.transform.localRotation = Quaternion.identity;
         laserOrigin = originObject.transform;
 
