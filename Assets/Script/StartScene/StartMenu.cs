@@ -1,14 +1,17 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting.Dependencies.Sqlite;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class StartMenu : MonoBehaviour
 {
-    [SerializeField] private string GameScene = "GameScene";
+    [SerializeField] private string GameScene1 = "SampleScene";
+    [SerializeField] private string GameScene2 = "BossScene";
 
     [SerializeField] private GameObject guidePanel;
     [SerializeField] private GameObject creditPanel;
+    [SerializeField] private GameObject startPanel;
     // Start is called before the first frame update
     void Start()
     {
@@ -16,6 +19,16 @@ public class StartMenu : MonoBehaviour
         if (guidePanel != null)
         {
             guidePanel.SetActive(false);
+        }
+
+        if(creditPanel != null)
+        {
+            creditPanel.SetActive(false);
+        }
+
+        if(startPanel != null)
+        {
+            startPanel.SetActive(false);
         }
     }
 
@@ -29,9 +42,30 @@ public class StartMenu : MonoBehaviour
     }
 
     //开始游戏按钮
-    public void StartGame()
+    public void StartGame1()
     {
-        SceneManager.LoadScene(GameScene);
+        SceneManager.LoadScene(GameScene1);
+    }
+
+    public void StartGame2()
+    {
+        SceneManager.LoadScene(GameScene2);
+    }
+
+    public void OpenStart()
+    {
+        if(startPanel != null)
+        {
+            startPanel.SetActive(true);
+        }
+    }
+
+    public void CloseStart()
+    {
+        if(startPanel != null)
+        {
+            startPanel.SetActive(false);
+        }
     }
 
     // 游戏说明按钮调用
