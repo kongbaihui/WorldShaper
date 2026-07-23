@@ -1016,46 +1016,12 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'CONTROLS
-
-
-    Movement
-
-    A / D            Move Left / Right
-
-    Space           
-    Jump
-
-    S + Space    Jump Down
-
-
-    Combat
-
-    Mouse            Aim
-
-    Left
-    Mouse     Attack
-
-    C                   Switch Weapon
-
-
-    Terrain Creation
-
-    Right
-    Mouse   Toggle Build Mode
-
-    1                    Floating Platform
-
-    2                   
-    Stone Wall
-
-    3                    Stone Spike
-
-
-    Menu
-
-    Esc               
-    Back'
+  m_text: "CONTROLS\n\nMovement\nA / D            Move Left / Right\nSpace           
+    Jump\nS + Space    Jump Down\n\nCombat\nMouse            Aim\nLeft Mouse    
+    Attack\nC                   Switch Weapon\nE \t       Shoot Laser\nLeft Mouse    
+    Get Hook\n\nTerrain Creation\nRight Mouse   Toggle Build Mode\n1                   
+    Floating Platform\n2                    Stone Wall\n3                    Stone
+    Spike\n\nMenu\nEsc                Back"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
