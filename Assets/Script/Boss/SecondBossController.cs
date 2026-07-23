@@ -29,7 +29,7 @@ public class SecondBossController : MonoBehaviour
     [SerializeField] private TerrainDamageService terrainDamageService;
 
     [Header("Body Contact Damage")]
-    [SerializeField, Min(1)] private int bodyContactDamage = 15;
+    [SerializeField, Min(1)] private int bodyContactDamage = 10;
     [SerializeField, Min(0.05f)] private float bodyDamageInterval = 0.5f;
 
     [Header("Ground Movement")]
@@ -44,7 +44,9 @@ public class SecondBossController : MonoBehaviour
     [SerializeField] private SpriteRenderer laserVisual;
     [SerializeField, Min(0.1f)] private float laserInterval = 4f;
     [SerializeField, Min(0f)] private float laserTelegraphTime = 0.55f;
-    [SerializeField, Min(0.05f)] private float laserDuration = 0.45f;
+    [SerializeField, Min(0.1f)] private float laserAimMaximumTime = 1.5f;
+    [SerializeField, Min(0.05f)] private float laserGrowTime = 0.45f;
+    [SerializeField, Min(0.1f)] private float laserDuration = 2f;
     [SerializeField, Min(1)] private int laserDamage = 18;
     [SerializeField, Min(1)] private int laserTerrainDamage = 2;
     [SerializeField, Min(0.1f)] private float laserWidth = 3f;
@@ -84,6 +86,7 @@ public class SecondBossController : MonoBehaviour
     [SerializeField] private GameObject[] platformsToShatter;
     [SerializeField, Min(0f)] private float platformMoveRange = 7f;
     [SerializeField, Min(0.1f)] private float platformMoveSpeed = 1.1f;
+    [SerializeField, Min(0f)] private float platformCarryTolerance = 0.25f;
 
     private readonly List<SecondBossBat> spawnedBats =
         new List<SecondBossBat>();
@@ -93,6 +96,11 @@ public class SecondBossController : MonoBehaviour
     private readonly HashSet<int> damagedTerrainIds = new HashSet<int>();
 
     private Vector3[] platformStartPositions;
+    private Rigidbody2D[] movingPlatformBodies;
+    private Collider2D[] movingPlatformColliders;
+    private Collider2D playerCollider;
+    private heroscrip playerController;
+    private float phaseTwoStartedAt;
     private float nextBodyDamageTime;
     private int sharedTailHealth;
     private int previousLeftTailHealth;
@@ -102,6 +110,8 @@ public class SecondBossController : MonoBehaviour
     private bool tailDefeated;
     private bool hasShatteredTerrain;
     private bool bossDead;
+    private bool laserPreparing;
+    private bool laserActive;
     private bool[] topSpikeDropped = new bool[2];
 
     private void Awake()
@@ -119,6 +129,17 @@ public class SecondBossController : MonoBehaviour
         if (bossAnimator == null)
         {
             bossAnimator = GetComponent<Animator>();
+        }
+
+        if (player != null)
+        {
+            playerController = player.GetComponent<heroscrip>();
+            if (playerBody == null)
+            {
+                playerBody = player.GetComponent<Rigidbody2D>();
+            }
+
+            playerCollider = player.GetComponent<Collider2D>();
         }
 
         if (leftTailDamageable != null)
@@ -193,12 +214,34 @@ public class SecondBossController : MonoBehaviour
         if (movingPlatforms != null)
         {
             platformStartPositions = new Vector3[movingPlatforms.Length];
+            movingPlatformBodies =
+                new Rigidbody2D[movingPlatforms.Length];
+            movingPlatformColliders =
+                new Collider2D[movingPlatforms.Length];
+
             for (int i = 0; i < movingPlatforms.Length; i++)
             {
                 if (movingPlatforms[i] != null)
                 {
                     platformStartPositions[i] =
                         movingPlatforms[i].position;
+
+                    Rigidbody2D platformBody =
+                        movingPlatforms[i].GetComponent<Rigidbody2D>();
+                    movingPlatformBodies[i] = platformBody;
+                    movingPlatformColliders[i] =
+                        movingPlatforms[i].GetComponent<Collider2D>();
+
+                    if (platformBody != null)
+                    {
+                        platformBody.bodyType =
+                            RigidbodyType2D.Kinematic;
+                        platformBody.gravityScale = 0f;
+                        platformBody.constraints =
+                            RigidbodyConstraints2D.FreezeRotation;
+                        platformBody.interpolation =
+                            RigidbodyInterpolation2D.Interpolate;
+                    }
                 }
             }
 
@@ -224,10 +267,6 @@ public class SecondBossController : MonoBehaviour
         }
 
         UpdatePhase();
-        if (currentPhase == 2)
-        {
-            MovePlatforms();
-        }
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -285,13 +324,39 @@ public class SecondBossController : MonoBehaviour
             return;
         }
 
+        if (currentPhase == 2)
+        {
+            MovePlatforms();
+        }
+
+        if (laserActive)
+        {
+            bossBody.velocity = Vector2.zero;
+            bossBody.MovePosition(
+                new Vector2(bossBody.position.x, bossGroundY));
+            return;
+        }
+
         float distance = player.position.x - bossBody.position.x;
         float newX = bossBody.position.x;
+        float activeStopDistance = laserPreparing
+            ? Mathf.Min(stopDistance, laserWidth * 0.5f)
+            : stopDistance;
 
-        if (Mathf.Abs(distance) > stopDistance)
+        if (Mathf.Abs(distance) > activeStopDistance)
         {
             float direction = Mathf.Sign(distance);
-            newX += direction * moveSpeed * Time.fixedDeltaTime;
+            float trackingSpeed = moveSpeed;
+            if (playerController != null)
+            {
+                trackingSpeed = Mathf.Min(
+                    trackingSpeed,
+                    Mathf.Abs(playerController.xSpeed));
+            }
+
+            newX += direction *
+                Mathf.Max(0.1f, trackingSpeed) *
+                Time.fixedDeltaTime;
         }
 
         newX = Mathf.Clamp(newX, leftBoundary, rightBoundary);
@@ -311,6 +376,29 @@ public class SecondBossController : MonoBehaviour
                 yield break;
             }
 
+            laserPreparing = true;
+
+            float aimElapsed = 0f;
+            float aimDistance =
+                Mathf.Max(0.1f, laserWidth * 0.5f);
+            while (player != null &&
+                   Mathf.Abs(
+                       player.position.x - bossBody.position.x) >
+                   aimDistance &&
+                   aimElapsed < laserAimMaximumTime)
+            {
+                aimElapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            if (bossDead ||
+                bossDamageable == null ||
+                !bossDamageable.IsAlive)
+            {
+                laserPreparing = false;
+                yield break;
+            }
+
             if (bossAnimator != null)
             {
                 bossAnimator.SetTrigger("ShootLine");
@@ -318,21 +406,34 @@ public class SecondBossController : MonoBehaviour
 
             yield return new WaitForSeconds(laserTelegraphTime);
 
-            float maximumDistance = GetLaserBlockDistance();
+            laserPreparing = false;
+            laserActive = true;
             damagedActorIds.Clear();
             damagedTerrainIds.Clear();
 
             float elapsed = 0f;
-            while (elapsed < laserDuration)
+            while (elapsed < laserGrowTime)
             {
                 elapsed += Time.deltaTime;
+                float maximumDistance = GetLaserBlockDistance();
                 float distance = maximumDistance *
-                    Mathf.Clamp01(elapsed / laserDuration);
+                    Mathf.Clamp01(elapsed / laserGrowTime);
                 ShowLaser(distance);
                 DamageLaserPath(distance);
                 yield return null;
             }
 
+            elapsed = 0f;
+            while (elapsed < laserDuration)
+            {
+                elapsed += Time.deltaTime;
+                float distance = GetLaserBlockDistance();
+                ShowLaser(distance);
+                DamageLaserPath(distance);
+                yield return null;
+            }
+
+            laserActive = false;
             if (laserVisual != null)
             {
                 laserVisual.enabled = false;
@@ -415,9 +516,15 @@ public class SecondBossController : MonoBehaviour
 
         Vector2 center =
             (Vector2)laserOrigin.position + Vector2.up * distance * 0.5f;
-        Collider2D[] hits = Physics2D.OverlapBoxAll(
+        if (distance < laserWidth)
+        {
+            return;
+        }
+
+        Collider2D[] hits = Physics2D.OverlapCapsuleAll(
             center,
             new Vector2(laserWidth, distance),
+            CapsuleDirection2D.Vertical,
             0f);
 
         for (int i = 0; i < hits.Length; i++)
@@ -797,6 +904,10 @@ public class SecondBossController : MonoBehaviour
             return;
         }
 
+        float phaseElapsed =
+            Mathf.Max(0f, Time.time - phaseTwoStartedAt);
+        bool playerCarried = false;
+
         for (int i = 0; i < movingPlatforms.Length; i++)
         {
             Transform platform = movingPlatforms[i];
@@ -807,14 +918,74 @@ public class SecondBossController : MonoBehaviour
 
             float direction = i % 2 == 0 ? 1f : -1f;
             float offset =
-                Mathf.Sin(Time.time * platformMoveSpeed + i * 0.8f) *
+                Mathf.Sin(phaseElapsed * platformMoveSpeed) *
                 platformMoveRange *
                 direction;
 
             Vector3 position = platformStartPositions[i];
             position.y += offset;
-            platform.position = position;
+
+            Collider2D platformCollider =
+                movingPlatformColliders != null &&
+                i < movingPlatformColliders.Length
+                    ? movingPlatformColliders[i]
+                    : null;
+            bool carryPlayer =
+                !playerCarried &&
+                IsPlayerStandingOn(platformCollider);
+
+            Rigidbody2D platformBody =
+                movingPlatformBodies != null &&
+                i < movingPlatformBodies.Length
+                    ? movingPlatformBodies[i]
+                    : null;
+            Vector2 previousPosition =
+                platformBody != null
+                    ? platformBody.position
+                    : (Vector2)platform.position;
+            Vector2 targetPosition = position;
+            Vector2 movement = targetPosition - previousPosition;
+
+            if (platformBody != null)
+            {
+                platformBody.MovePosition(targetPosition);
+            }
+            else
+            {
+                platform.position = position;
+            }
+
+            if (carryPlayer &&
+                playerBody != null &&
+                movement.sqrMagnitude > 0f)
+            {
+                playerBody.position += movement;
+                playerCarried = true;
+            }
         }
+    }
+
+    private bool IsPlayerStandingOn(Collider2D platformCollider)
+    {
+        if (playerCollider == null ||
+            playerCollider.isTrigger ||
+            platformCollider == null ||
+            !platformCollider.enabled)
+        {
+            return false;
+        }
+
+        Bounds playerBounds = playerCollider.bounds;
+        Bounds platformBounds = platformCollider.bounds;
+        bool overlapsHorizontally =
+            playerBounds.max.x > platformBounds.min.x &&
+            playerBounds.min.x < platformBounds.max.x;
+        float feetToPlatformTop =
+            playerBounds.min.y - platformBounds.max.y;
+
+        return overlapsHorizontally &&
+               feetToPlatformTop >= -platformCarryTolerance &&
+               feetToPlatformTop <= platformCarryTolerance;
     }
 
     private void RestorePlatformsToStartPositions()
@@ -829,8 +1000,21 @@ public class SecondBossController : MonoBehaviour
         {
             if (movingPlatforms[i] != null)
             {
-                movingPlatforms[i].position =
-                    platformStartPositions[i];
+                Rigidbody2D platformBody =
+                    movingPlatformBodies != null &&
+                    i < movingPlatformBodies.Length
+                        ? movingPlatformBodies[i]
+                        : null;
+                if (platformBody != null)
+                {
+                    platformBody.position =
+                        platformStartPositions[i];
+                }
+                else
+                {
+                    movingPlatforms[i].position =
+                        platformStartPositions[i];
+                }
             }
         }
     }
@@ -859,6 +1043,11 @@ public class SecondBossController : MonoBehaviour
 
         if (targetPhase > currentPhase)
         {
+            if (currentPhase < 2 && targetPhase == 2)
+            {
+                phaseTwoStartedAt = Time.time;
+            }
+
             currentPhase = targetPhase;
         }
 
@@ -1113,6 +1302,8 @@ public class SecondBossController : MonoBehaviour
         }
 
         bossDead = true;
+        laserPreparing = false;
+        laserActive = false;
         StopAllCoroutines();
 
         if (bossBody != null)
@@ -1225,7 +1416,7 @@ public class SecondBossController : MonoBehaviour
         }
 
         originObject.transform.SetParent(transform);
-        originObject.transform.localPosition = new Vector3(0f, 4f, 0f);
+        originObject.transform.localPosition = new Vector3(0f, 2.5f, 0f);
         originObject.transform.localRotation = Quaternion.identity;
         laserOrigin = originObject.transform;
 
@@ -1237,8 +1428,16 @@ public class SecondBossController : MonoBehaviour
 
         visualObject.transform.SetParent(roomRoot);
         laserVisual = GetOrAdd<SpriteRenderer>(visualObject);
-        laserVisual.sprite = Resources.Load<Sprite>("Art/PrototypeSquare");
-        laserVisual.color = new Color(1f, 0.18f, 0.04f, 0.8f);
+        laserVisual.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+            "Packages/com.unity.2d.sprite/Editor/ObjectMenuCreation/" +
+            "DefaultAssets/Textures/v2/Capsule.png");
+        if (laserVisual.sprite == null)
+        {
+            laserVisual.sprite =
+                Resources.Load<Sprite>("Art/PrototypeSquare");
+        }
+
+        laserVisual.color = Color.red;
         laserVisual.sortingOrder = 20;
         laserVisual.enabled = false;
     }
@@ -1502,6 +1701,10 @@ public class SecondBossController : MonoBehaviour
             GetOrAdd<CircleCollider2D>(batTemplate);
         collider.isTrigger = true;
         GetOrAdd<SecondBossBat>(batTemplate);
+        ConfigureDamageable(
+            GetOrAdd<PrototypeDamageable>(batTemplate),
+            TerrainOwner.Boss,
+            1);
         batTemplate.layer = LayerMask.NameToLayer("Ignore Raycast");
 
         batSpawnPoints = new Transform[2];
@@ -1544,6 +1747,15 @@ public class SecondBossController : MonoBehaviour
             GameObject platform = FindSceneObject(platformNames[i]);
             if (platform != null)
             {
+                Rigidbody2D platformBody =
+                    GetOrAdd<Rigidbody2D>(platform);
+                platformBody.bodyType = RigidbodyType2D.Kinematic;
+                platformBody.gravityScale = 0f;
+                platformBody.constraints =
+                    RigidbodyConstraints2D.FreezeRotation;
+                platformBody.interpolation =
+                    RigidbodyInterpolation2D.Interpolate;
+
                 movingPlatforms[i] = platform.transform;
                 platformsToShatter[i] = platform;
             }

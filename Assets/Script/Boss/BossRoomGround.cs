@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class BossRoomGround : MonoBehaviour
 {
-    [SerializeField, Min(1)] private int damage = 10;
-    [SerializeField, Min(0.05f)] private float damageInterval = 0.5f;
+    [SerializeField, Min(1)] private int damage = 5;
+    [SerializeField, Min(0.05f)] private float damageInterval = 1f;
 
     private readonly Dictionary<int, float> nextDamageTimes =
         new Dictionary<int, float>();
