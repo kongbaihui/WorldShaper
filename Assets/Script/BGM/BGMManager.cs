@@ -30,7 +30,7 @@ public class BGMManager : MonoBehaviour
     {
         Scene currentScene = SceneManager.GetActiveScene();
         string sceneName = currentScene.name;
-        if (sceneName == "StartScene")
+        if (sceneName == "StartScene" || sceneName == "BossScene")
         {
             Destroy(gameObject);
         }
