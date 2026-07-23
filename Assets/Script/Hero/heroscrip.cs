@@ -27,6 +27,7 @@ public class heroscrip : MonoBehaviour
     //end use
     //USED BY ANIMATION
     private bool HadJump = false;
+    private GameObject TheLine;
     //END USE
 
     //use by bow arrow num
@@ -36,7 +37,9 @@ public class heroscrip : MonoBehaviour
     //used by unmove shoot line
     public bool IsShootLine = false;
     //end use
-
+    //used by shoot line interv
+    public GameObject TheChargeLineBar;
+    //end use
     [Header("Ground Detection")]
     [Tooltip("Layers that can be queried below the Hero. Ground and Breakable are enabled by default.")]
     [SerializeField] private LayerMask jumpableLayers = (1 << 6) | (1 << 7);
@@ -57,6 +60,7 @@ public class heroscrip : MonoBehaviour
 
         HeroPhysics = GetComponent<Rigidbody2D>();
         TheArrow = GameObject.Find("Arrow");
+        TheChargeLineBar = GameObject.Find("LineChargeBar");
         BulletSpawnAt = 0;
         SelfColli = GetComponent<Collider2D>();
 
@@ -203,11 +207,27 @@ public class heroscrip : MonoBehaviour
             }
             else
             {
-                ShootLine();
-                IsShootLine = true;
-
+                if (TheChargeLineBar.GetComponent<LineChargeBar>().Charge == TheChargeLineBar.GetComponent<LineChargeBar>().MaxCharge)
+                {
+                    ShootLine();
+                    IsShootLine = true;
+                    TheChargeLineBar.GetComponent<LineChargeBar>().Charge = 0;
+                }
             }
         }
+
+        //animation need
+        TheLine = GameObject.Find("Line(Clone)");
+        if (TheLine != null)
+        {
+            GiveAnimationShootLine(true);
+        }
+        else
+        {
+            GiveAnimationShootLine(false);
+        }
+
+
         //control drop
         if (onGround)
         {
@@ -456,6 +476,19 @@ public class heroscrip : MonoBehaviour
             }
         }
     }
+
+    public void GiveAnimationShootLine(bool Shooting)
+    {
+        if (Shooting)
+        {
+            GetComponent<Animator>().SetBool("ShootLine", true);
+        }
+        else
+        {
+            GetComponent<Animator>().SetBool("ShootLine", false);
+        }
+    }
+
 
     private void ShootLine()
     {

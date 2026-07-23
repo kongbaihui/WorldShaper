@@ -103,6 +103,7 @@ MonoBehaviour:
   MaxScaleY: 100
   TheHero: {fileID: 0}
   InitialPosition: {x: 0, y: 0, z: 0}
+  Speed: 240
 --- !u!60 &37376161041425012
 PolygonCollider2D:
   m_ObjectHideFlags: 0
