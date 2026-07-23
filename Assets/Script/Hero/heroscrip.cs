@@ -36,6 +36,8 @@ public class heroscrip : MonoBehaviour
 
     //used by unmove shoot line
     public bool IsShootLine = false;
+    // 第二 Boss 房间钩锁脚本在拉动和附着期间设置此状态。
+    public bool IsGrappling = false;
     //end use
     //used by shoot line interv
     public GameObject TheChargeLineBar;
@@ -75,6 +77,12 @@ public class heroscrip : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (IsGrappling)
+        {
+            CleanNotMeleeState();
+            GiveAnimationRun(false);
+            return;
+        }
 
         float horizontalInput = 0f;
         //control -x
@@ -135,7 +143,9 @@ public class heroscrip : MonoBehaviour
         }
 
         // 是否允许攻击：不在创造模式时才能攻击
-        bool canAttack = terrainController == null || !terrainController.IsBuildMode;
+        bool canAttack =
+            !IsGrappling &&
+            (terrainController == null || !terrainController.IsBuildMode);
 
         //shoot
         //change by chu at 7/18/16:00 为远程攻击增加蓄力及滞空
