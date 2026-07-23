@@ -9,6 +9,7 @@ public class LineScrip : MonoBehaviour
     public GameObject TheHero;
     //public GameObject TheArrow;
     public Vector3 InitialPosition;
+    public float Speed = 2f;
     // Start is called before the first frame update
     void Start()
     {
@@ -43,6 +44,7 @@ public class LineScrip : MonoBehaviour
 
         transform.localPosition = InitialPosition + transform.up * transform.localScale.y;
 
-        NowScaleY += 0.1f;
+        float addValue = Speed * Time.deltaTime;
+        NowScaleY = Mathf.Min(NowScaleY + addValue, MaxScaleY);
     }
 }
