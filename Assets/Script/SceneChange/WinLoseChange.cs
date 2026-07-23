@@ -18,4 +18,9 @@ public class WinLoseChange
             SceneManager.LoadScene(2);
         }
     }
+
+    public static void JumpToNext()
+    {
+        SceneManager.LoadScene(5);
+    }
 }

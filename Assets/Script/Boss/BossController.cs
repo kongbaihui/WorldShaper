@@ -41,6 +41,12 @@ namespace FinalGame.Boss
     [RequireComponent(typeof(PrototypeDamageable))]
     public sealed class BossController : MonoBehaviour
     {
+        //add
+        private BossLimb[] bossLimbs;
+        public int deadLimbCount;
+        [Header("Limbs (Assign manually)")]
+        [SerializeField] private BossLimb[] limbs;  // 在 Inspector 中拖入两个手臂
+        //end
         [Header("Required References")]
         [SerializeField] private Transform player;
         [SerializeField] private Rigidbody2D playerBody;
@@ -128,10 +134,49 @@ namespace FinalGame.Boss
         private void Start()
         {
             EnterState(BossState.Idle);
+            // 新增：订阅手臂死亡事件
+            bossLimbs = GetComponentsInChildren<BossLimb>();
+            deadLimbCount = 0;
+            foreach (var limb in bossLimbs)
+            {
+                if (limb != null)
+                    limb.OnLimbDied += HandleLimbDied;
+            }
         }
+        //add
+        private void HandleLimbDied(BossLimb limb)
+        {
+            deadLimbCount++;
+            if (deadLimbCount >= 2 && CurrentPhase < 3)
+            {
+                ForceEnterPhase(3);
+            }
+        }
+        public void ForceEnterPhase(int phase)
+        {
+            if (phase <= CurrentPhase) return;
+            CurrentPhase = phase;
+            // 中断当前所有协程和攻击
+            CancelCurrentAttack();
+            // 开始阶段转换动画（复用现有的 PhaseTransitionRoutine）
+            if (activeRoutine != null)
+                StopCoroutine(activeRoutine);
+            activeRoutine = StartCoroutine(PhaseTransitionRoutine());
+        }
+        //end
 
         private void OnDisable()
         {
+            // 新增：取消手臂事件订阅
+            if (bossLimbs != null)
+            {
+                foreach (var limb in bossLimbs)
+                {
+                    if (limb != null)
+                        limb.OnLimbDied -= HandleLimbDied;
+                }
+            }
+            // 以下保持原有代码
             if (bossDamageable != null)
             {
                 bossDamageable.HealthChanged -= HandleHealthChanged;
@@ -193,6 +238,27 @@ namespace FinalGame.Boss
                             : BossState.Idle);
                     }
                     break;
+            }
+            // 在末尾添加
+            CheckLimbDeath();
+
+        }
+        private void CheckLimbDeath()
+        {
+            if (CurrentPhase >= 3 || limbs == null || limbs.Length == 0) return;
+            bool allDead = true;
+            foreach (var limb in limbs)
+            {
+                if (limb != null) // 如果引用不为空，说明手臂还存在（未销毁）
+                {
+                    allDead = false;
+                    break;
+                }
+            }
+            if (allDead)
+            {
+                Debug.Log("Both limbs destroyed. Forcing phase 3.", this);
+                ForceEnterPhase(3);
             }
         }
 

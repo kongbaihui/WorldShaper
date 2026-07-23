@@ -5,9 +5,13 @@ using UnityEngine;
 
 namespace FinalGame.Boss
 {
+
     [RequireComponent(typeof(PrototypeDamageable), typeof(Collider2D))]
     public sealed class BossLimb : MonoBehaviour
     {
+        //add
+        public System.Action<BossLimb> OnLimbDied;
+        //end
         [Header("Attack")]
         [SerializeField, Min(0.1f)] private float firstAttackDelay = 2f;
         [SerializeField, Min(0.1f)] private float attackInterval = 6f;
@@ -450,6 +454,8 @@ namespace FinalGame.Boss
         {
             if (currentHealth <= 0)
             {
+                // 通知 BossController 此手臂死亡
+                OnLimbDied?.Invoke(this);
                 Destroy(gameObject);
             }
         }

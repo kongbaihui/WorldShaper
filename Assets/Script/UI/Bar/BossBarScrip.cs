@@ -1,6 +1,6 @@
 using Challenge2.TerrainPrototype;
 using UnityEngine;
-
+using UnityEngine.SceneManagement;
 public class BossBarScrip : MonoBehaviour
 {
     public float InitialPositionX = 55;
@@ -37,9 +37,14 @@ public class BossBarScrip : MonoBehaviour
         TempSacle.y = transform.localScale.y;
         TempSacle.z = transform.localScale.z;
         transform.localScale = TempSacle;
-        if (BarRate == 0)
+        string sceneName = SceneManager.GetActiveScene().name;
+        if (BarRate == 0 && sceneName == "BossScene")
         {
             WinLoseChange.JumpToEnd(true);
+        }
+        else if (BarRate == 0 && sceneName == "SampleScene")
+        {
+            WinLoseChange.JumpToNext();
         }
     }
 

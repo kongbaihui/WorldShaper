@@ -321,6 +321,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a135c7b5bffe4d9bbe4c252661e1d428, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  deadLimbCount: 0
+  limbs: []
   player: {fileID: 1579738105}
   playerBody: {fileID: 1579738102}
   bossDamageable: {fileID: 114704692}
@@ -2904,7 +2906,7 @@ Transform:
   m_GameObject: {fileID: 1579738101}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.0095, y: -0.0286, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 20.037998, y: 19.845999, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2934,6 +2936,7 @@ MonoBehaviour:
   ChargeSpeed: 60
   RemainNum: 3
   IsShootLine: 0
+  IsGrappling: 0
   TheChargeLineBar: {fileID: 0}
   jumpableLayers:
     serializedVersion: 2
@@ -4851,6 +4854,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a135c7b5bffe4d9bbe4c252661e1d428, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  deadLimbCount: 0
+  limbs:
+  - {fileID: 2140000110}
+  - {fileID: 2140000111}
   player: {fileID: 1579738105}
   playerBody: {fileID: 1579738102}
   bossDamageable: {fileID: 1948843047}

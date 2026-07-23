@@ -1,6 +1,6 @@
 using Challenge2.TerrainPrototype;
 using UnityEngine;
-
+using UnityEngine.SceneManagement;
 public class HeroBarScrip : MonoBehaviour
 {
     public float InitialPositionX = -55;
