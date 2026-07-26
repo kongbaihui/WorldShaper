@@ -7,6 +7,8 @@ using UnityEngine.InputSystem;
 
 public class heroscrip : MonoBehaviour
 {
+    public GameObject TheSwordAudio;
+    public GameObject TheBowAudio;
     private Rigidbody2D HeroPhysics;
     public float ShootInterval = 0.2f;
     private float BulletSpawnAt;
@@ -80,6 +82,9 @@ public class heroscrip : MonoBehaviour
             int breakableLayer = LayerMask.NameToLayer("Breakable");
             jumpableLayers = (1 << groundLayer) | (1 << breakableLayer);
         }
+
+        TheSwordAudio = GameObject.Find("swordaudio");
+        TheBowAudio = GameObject.Find("bowaudio");
     }
 
     // Update is called once per frame
@@ -205,6 +210,7 @@ public class heroscrip : MonoBehaviour
                                     BulletSpawnAt = Time.time;
                                     CleanNotMeleeState();
                                     RemainNum--;
+                                    TheBowAudio.GetComponent<AudioSource>().Play();
                                 }
                             }
                         }
@@ -224,6 +230,8 @@ public class heroscrip : MonoBehaviour
 
                             MeleeAttack();
                             BulletSpawnAt = Time.time;
+
+                            TheSwordAudio.GetComponent<AudioSource>().Play();
                         }
                     }
                     //check clip info to control towards of texture
