@@ -42,6 +42,14 @@ public class heroscrip : MonoBehaviour
     //used by shoot line interv
     public GameObject TheChargeLineBar;
     //end use
+
+    //used by jump
+    private float jumptime;
+    private float jumpinitialtime;
+    public float addjumptime = 0.5f;
+    public float addjumpforce = 5f;
+    private bool canaddjump = false;
+    //end use
     [Header("Ground Detection")]
     [Tooltip("Layers that can be queried below the Hero. Ground and Breakable are enabled by default.")]
     [SerializeField] private LayerMask jumpableLayers = (1 << 6) | (1 << 7);
@@ -114,12 +122,15 @@ public class heroscrip : MonoBehaviour
         //control y
         if (onGround && !HaveArrowInStay && !IsShootLine)
         {
-            if (Keyboard.current.spaceKey.isPressed && !Keyboard.current.sKey.isPressed)
+            if (Keyboard.current.spaceKey.wasPressedThisFrame && !Keyboard.current.sKey.isPressed)
             {
                 GiveAnimationJump(true);
                 HadJump = true;
                 float tempXSpeed = HeroPhysics.velocity.x;
                 HeroPhysics.velocity = new Vector2(tempXSpeed, ySpeed);
+                jumptime = Time.time + addjumptime;
+                jumpinitialtime = Time.time;
+                canaddjump = true;
             }
             else
             {
@@ -142,6 +153,21 @@ public class heroscrip : MonoBehaviour
             }
         }
 
+
+        if (!onGround && Keyboard.current.spaceKey.isPressed)
+        {
+            if (Time.time < jumptime && canaddjump)
+            {
+                float tempXSpeed = HeroPhysics.velocity.x;
+                float tempYSpeed = HeroPhysics.velocity.y + addjumpforce * (Time.time - jumpinitialtime);
+                jumpinitialtime = Time.time;
+                HeroPhysics.velocity = new Vector2(tempXSpeed, tempYSpeed);
+            }
+        }
+        else if (!Keyboard.current.spaceKey.isPressed)
+        {
+            canaddjump = false;
+        }
         // 是否允许攻击：不在创造模式时才能攻击
         bool canAttack =
             !IsGrappling &&
@@ -215,17 +241,18 @@ public class heroscrip : MonoBehaviour
                     }
                 }
             }
-            else
-            {
-                if (TheChargeLineBar.GetComponent<LineChargeBar>().Charge == TheChargeLineBar.GetComponent<LineChargeBar>().MaxCharge)
-                {
-                    ShootLine();
-                    IsShootLine = true;
-                    TheChargeLineBar.GetComponent<LineChargeBar>().Charge = 0;
-                }
-            }
         }
 
+
+        if (Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            if (TheChargeLineBar.GetComponent<LineChargeBar>().Charge == TheChargeLineBar.GetComponent<LineChargeBar>().MaxCharge)
+            {
+                ShootLine();
+                IsShootLine = true;
+                TheChargeLineBar.GetComponent<LineChargeBar>().Charge = 0;
+            }
+        }
         //animation need
         TheLine = GameObject.Find("Line(Clone)");
         if (TheLine != null)
