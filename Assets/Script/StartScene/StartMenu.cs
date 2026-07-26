@@ -73,6 +73,14 @@ public class StartMenu : MonoBehaviour
         if (guidePanel != null)
         {
             guidePanel.SetActive(true);
+
+            KeyRebindButton[] keyButtons =
+                guidePanel.GetComponentsInChildren<KeyRebindButton>(true);
+
+            foreach (KeyRebindButton keyButton in keyButtons)
+            {
+                keyButton.RefreshText();
+            }
         }
     }
 

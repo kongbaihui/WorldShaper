@@ -42,8 +42,8 @@ public class GrappleHook : MonoBehaviour
             return;
         }
 
-        if (Keyboard.current != null &&
-            Keyboard.current.spaceKey.wasPressedThisFrame)
+        if (GameKeySettings.WasPressed(
+                GameKeyAction.Jump))
         {
             Release();
         }

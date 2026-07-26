@@ -95,15 +95,9 @@ public sealed class PlayerTerrainController :
             return;
         }
 
-        /*
-         * L 只切换创造模式。
-         * 不会消耗创造次数。
-         */
-        if (mouse.rightButton
-            .wasPressedThisFrame)
+        if (GameKeySettings.WasPressed(GameKeyAction.BuildMode))
         {
-            SetBuildMode(
-                !IsBuildMode);
+            SetBuildMode(!IsBuildMode);
         }
 
         if (!IsBuildMode)
@@ -186,26 +180,23 @@ public sealed class PlayerTerrainController :
     private void ReadTerrainSelection(
         Keyboard keyboard)
     {
-        if (keyboard.digit1Key
-            .wasPressedThisFrame)
+        if (GameKeySettings.WasPressed(
+                GameKeyAction.SelectPlatform))
         {
             SelectTerrain(
-                TerrainType
-                    .FloatingPlatform);
+                TerrainType.FloatingPlatform);
         }
-        else if (keyboard.digit2Key
-                 .wasPressedThisFrame)
+        else if (GameKeySettings.WasPressed(
+                     GameKeyAction.SelectWall))
         {
             SelectTerrain(
-                TerrainType
-                    .FallingStoneWall);
+                TerrainType.FallingStoneWall);
         }
-        else if (keyboard.digit3Key
-                 .wasPressedThisFrame)
+        else if (GameKeySettings.WasPressed(
+                     GameKeyAction.SelectSpike))
         {
             SelectTerrain(
-                TerrainType
-                    .FallingStoneSpike);
+                TerrainType.FallingStoneSpike);
         }
     }
 

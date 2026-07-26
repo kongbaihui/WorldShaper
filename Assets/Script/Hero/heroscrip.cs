@@ -94,12 +94,13 @@ public class heroscrip : MonoBehaviour
 
         float horizontalInput = 0f;
         //control -x
-        if (Keyboard.current.aKey.isPressed)
+        if (GameKeySettings.IsPressed(
+                GameKeyAction.MoveLeft))
         {
             horizontalInput = -1f;
         }
-        //control +x
-        else if (Keyboard.current.dKey.isPressed)
+        else if (GameKeySettings.IsPressed(
+                     GameKeyAction.MoveRight))
         {
             horizontalInput = 1f;
         }
@@ -122,7 +123,7 @@ public class heroscrip : MonoBehaviour
         //control y
         if (onGround && !HaveArrowInStay && !IsShootLine)
         {
-            if (Keyboard.current.spaceKey.wasPressedThisFrame && !Keyboard.current.sKey.isPressed)
+            if (GameKeySettings.WasPressed(GameKeyAction.Jump) && !GameKeySettings.IsPressed(GameKeyAction.MoveDown))
             {
                 GiveAnimationJump(true);
                 HadJump = true;
@@ -154,7 +155,7 @@ public class heroscrip : MonoBehaviour
         }
 
 
-        if (!onGround && Keyboard.current.spaceKey.isPressed)
+        if (!onGround && GameKeySettings.IsPressed(GameKeyAction.Jump))
         {
             if (Time.time < jumptime && canaddjump)
             {
@@ -164,7 +165,7 @@ public class heroscrip : MonoBehaviour
                 HeroPhysics.velocity = new Vector2(tempXSpeed, tempYSpeed);
             }
         }
-        else if (!Keyboard.current.spaceKey.isPressed)
+        else if (!GameKeySettings.IsPressed(GameKeyAction.Jump))
         {
             canaddjump = false;
         }
@@ -177,7 +178,7 @@ public class heroscrip : MonoBehaviour
         //change by chu at 7/18/16:00 为远程攻击增加蓄力及滞空
         if (canAttack)
         {
-            if (!Keyboard.current.eKey.wasPressedThisFrame)
+            if (!GameKeySettings.WasPressed(GameKeyAction.Laser))
             {
                 if (!IsMelee)
                 {
@@ -244,7 +245,7 @@ public class heroscrip : MonoBehaviour
         }
 
 
-        if (Keyboard.current.eKey.wasPressedThisFrame)
+        if (GameKeySettings.WasPressed(GameKeyAction.Laser))
         {
             if (TheChargeLineBar.GetComponent<LineChargeBar>().Charge == TheChargeLineBar.GetComponent<LineChargeBar>().MaxCharge)
             {
@@ -268,9 +269,9 @@ public class heroscrip : MonoBehaviour
         //control drop
         if (onGround)
         {
-            if (Keyboard.current.sKey.isPressed)
+            if (GameKeySettings.IsPressed(GameKeyAction.MoveDown))
             {
-                if (Keyboard.current.spaceKey.wasPressedThisFrame)
+                if (GameKeySettings.WasPressed(GameKeyAction.Jump))
                 {
                     //if not on the ground
                     if (canDropThroughCurrentSurface &&
@@ -283,7 +284,8 @@ public class heroscrip : MonoBehaviour
             }
         }
         //change weapon
-        if (Keyboard.current.cKey.wasPressedThisFrame)
+        if (GameKeySettings.WasPressed(
+                GameKeyAction.SwitchWeapon))
         {
             IsMelee = !IsMelee;
         }
