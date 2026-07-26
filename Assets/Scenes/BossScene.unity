@@ -2350,7 +2350,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1033020907}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: BatSpawnRight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4620,7 +4620,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 0.32
+  m_Radius: 0.1
 --- !u!50 &1835894920
 Rigidbody2D:
   serializedVersion: 4
@@ -5522,7 +5522,7 @@ GameObject:
   - component: {fileID: 2021198536}
   - component: {fileID: 2021198535}
   - component: {fileID: 2021198534}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Boss
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5682,10 +5682,10 @@ MonoBehaviour:
   batSpawnPoints:
   - {fileID: 2064930099}
   - {fileID: 1033020907}
-  batSpawnInterval: 3.5
+  batSpawnInterval: 5
   batMoveSpeed: 16
-  batDamage: 10
-  batMaximumCount: 6
+  batDamage: 5
+  batMaximumCount: 3
   batLifeTime: 12
   movingPlatforms:
   - {fileID: 1483165209}
@@ -6105,7 +6105,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2064930099}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: BatSpawnLeft
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6136,7 +6136,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2132354369}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: SecondBossLaserOrigin
   m_TagString: Untagged
   m_Icon: {fileID: 0}
