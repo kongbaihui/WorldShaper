@@ -1776,7 +1776,7 @@ AudioSource:
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
-  m_audioClip: {fileID: 8300000, guid: bef7a012dc36eb54eb3eaa4ddd0a3db7, type: 3}
+  m_audioClip: {fileID: 8300000, guid: f2a2cf1615a142e4d837f30e986a3d81, type: 3}
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
@@ -3699,6 +3699,7 @@ MonoBehaviour:
     m_Bits: 192
   groundCheckDistance: 0.12
   minimumGroundNormalY: 0.65
+  groundedGraceTime: 0.1
   stableWallSpeed: 0.25
   stableWallAngularSpeed: 2
 --- !u!114 &1579738107

@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 public class BGMManager : MonoBehaviour
 {
-    // Start is called before the first frame update
     void Awake()
     {
         if (FindObjectsOfType<BGMManager>().Length > 1)

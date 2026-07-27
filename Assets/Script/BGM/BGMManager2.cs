@@ -4,10 +4,19 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 public class BGMManager2 : MonoBehaviour
 {
+    void Awake()
+    {
+        if (FindObjectsOfType<BGMManager2>().Length > 1)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        DontDestroyOnLoad(gameObject);
+    }
     // Start is called before the first frame update
     void Start()
     {
-        DontDestroyOnLoad(gameObject);
+
     }
 
     // Update is called once per frame
