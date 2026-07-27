@@ -14,6 +14,13 @@ public class KeyIconLibrary : MonoBehaviour
 
     public Sprite GetIcon(GameKeyAction action)
     {
+        string fixedIconName = GetFixedActionIconName(action);
+
+        if (!string.IsNullOrEmpty(fixedIconName))
+        {
+            return FindKeyboardIcon(fixedIconName);
+        }
+
         if (GameKeySettings.UsesRightMouse(action))
         {
             return rightMouseIcon;
@@ -22,6 +29,11 @@ public class KeyIconLibrary : MonoBehaviour
         string iconName = GetIconName(
             GameKeySettings.Get(action));
 
+        return FindKeyboardIcon(iconName);
+    }
+
+    private Sprite FindKeyboardIcon(string iconName)
+    {
         if (keyboardIcons != null)
         {
             foreach (Sprite icon in keyboardIcons)
@@ -35,6 +47,22 @@ public class KeyIconLibrary : MonoBehaviour
         }
 
         return keyboardFallbackIcon;
+    }
+
+    private static string GetFixedActionIconName(
+        GameKeyAction action)
+    {
+        switch (action)
+        {
+            case GameKeyAction.SelectPlatform:
+                return "1";
+            case GameKeyAction.SelectWall:
+                return "2";
+            case GameKeyAction.SelectSpike:
+                return "3";
+            default:
+                return "";
+        }
     }
 
     private static string GetIconName(Key key)

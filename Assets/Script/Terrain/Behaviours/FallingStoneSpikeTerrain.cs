@@ -18,7 +18,17 @@ namespace Challenge2.TerrainPrototype
             PrototypeDamageable target = collision.collider.GetComponentInParent<PrototypeDamageable>();
             if (CanDamageTarget(target))
             {
-                target.TryApplyDamage(_spikeDamage, Owner, Creator);
+                bool damageApplied =
+                    target.TryApplyDamage(_spikeDamage, Owner, Creator);
+                if (damageApplied && TutorialManager.Instance != null)
+                {
+                    TutorialTarget tutorialTarget =
+                        collision.collider.GetComponentInParent<TutorialTarget>();
+                    if (tutorialTarget != null)
+                    {
+                        tutorialTarget.TryReceiveHit(TutorialHitType.SpikeDamage);
+                    }
+                }
             }
 
             // 石墙断开后不再是根节点的子物体，从段组件取回原石墙。

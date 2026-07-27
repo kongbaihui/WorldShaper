@@ -17,7 +17,7 @@ public class LineScrip : MonoBehaviour
 
     private TerrainDamageService terrainDamageService;
 
-    // ·ÀÖ¹Ò»Ìõ¼¤¹âÔÚÃ¿Ò»Ö¡ÖØ¸´ÉËº¦Í¬Ò»¸öÄ¿±ê
+    // é˜²æ­¢ä¸€æ¡æ¿€å…‰åœ¨æ¯ä¸€å¸§é‡å¤ä¼¤å®³åŒä¸€ä¸ªç›®æ ‡
     private readonly HashSet<int> damagedTargets =
         new HashSet<int>();
 
@@ -69,7 +69,7 @@ public class LineScrip : MonoBehaviour
         newScale.y = NowScaleY;
         transform.localScale = newScale;
 
-        // ¼¤¹âµ×²¿±£³ÖÔÚ½ÇÉ«¸½½ü
+        // æ¿€å…‰åº•éƒ¨ä¿æŒåœ¨è§’è‰²é™„è¿‘
         transform.position =
             InitialPosition +
             transform.up * transform.localScale.y;
@@ -126,7 +126,7 @@ public class LineScrip : MonoBehaviour
             return;
         }
 
-        // ·Ö¶ÎµØĞÎµÄ¸ù Trigger ²»Ö±½ÓÊÜµ½ÉËº¦
+        // åˆ†æ®µåœ°å½¢çš„æ ¹ Trigger ä¸ç›´æ¥å—åˆ°ä¼¤å®³
         if (segment == null &&
             terrain is ITerrainSegmentHost)
         {
@@ -198,6 +198,13 @@ public class LineScrip : MonoBehaviour
         if (damageApplied)
         {
             damagedTargets.Add(targetId);
+
+            TutorialDummyHitReaction tutorialDummy =
+                collision.GetComponentInParent<TutorialDummyHitReaction>();
+            if (tutorialDummy != null)
+            {
+                tutorialDummy.TryReceiveLaserHit();
+            }
         }
     }
 

@@ -118,6 +118,15 @@ public class meleescrip : MonoBehaviour
         if (target.TryApplyDamage(damage, TerrainOwner.Player, attacker))
         {
             damagedTargets.Add(targetId);
+            if (TutorialManager.Instance != null)
+            {
+                TutorialTarget tutorialTarget =
+                    collision.GetComponentInParent<TutorialTarget>();
+                if (tutorialTarget != null)
+                {
+                    tutorialTarget.TryReceiveHit(TutorialHitType.Melee);
+                }
+            }
         }
     }
 }

@@ -82,6 +82,16 @@ public class bulletscrip : MonoBehaviour
                     attackerTransform != null ? attackerTransform : transform))
             {
                 hasDamagedActor = true;
+                if (TutorialManager.Instance != null)
+                {
+                    TutorialTarget tutorialTarget =
+                        collision.GetComponentInParent<TutorialTarget>();
+                    if (tutorialTarget != null)
+                    {
+                        tutorialTarget.TryReceiveHit(TutorialHitType.Ranged);
+                    }
+                }
+
                 DestroySelf();
                 return;
             }
