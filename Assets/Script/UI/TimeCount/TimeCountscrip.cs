@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 using TMPro;
+using UnityEngine.SceneManagement;
 public class TimeCount : MonoBehaviour
 {
     public TMP_Text TheTmpText = null;
@@ -18,6 +19,15 @@ public class TimeCount : MonoBehaviour
     {
         CountTime += Time.deltaTime;
         TheTmpText.text = TimeFormatter(CountTime);
+        int curSceneIdx = SceneManager.GetActiveScene().buildIndex;
+        if (curSceneIdx == 3)
+        {
+            StaticTime.Boss1Time = CountTime;
+        }
+        else if (curSceneIdx == 4)
+        {
+            StaticTime.Boss2Time = CountTime;
+        }
     }
     private string TimeFormatter(float CountTime)
     {
