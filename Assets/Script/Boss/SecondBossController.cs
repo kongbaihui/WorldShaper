@@ -970,15 +970,6 @@ public class SecondBossController : MonoBehaviour
             Vector3 position = platformStartPositions[i];
             position.y += offset;
 
-            Collider2D platformCollider =
-                movingPlatformColliders != null &&
-                i < movingPlatformColliders.Length
-                    ? movingPlatformColliders[i]
-                    : null;
-            bool carryPlayer =
-                !playerCarried &&
-                IsPlayerStandingOn(platformCollider);
-
             Rigidbody2D platformBody =
                 movingPlatformBodies != null &&
                 i < movingPlatformBodies.Length
@@ -990,6 +981,21 @@ public class SecondBossController : MonoBehaviour
                     : (Vector2)platform.position;
             Vector2 targetPosition = position;
             Vector2 movement = targetPosition - previousPosition;
+            Collider2D platformCollider =
+                movingPlatformColliders != null &&
+                i < movingPlatformColliders.Length
+                    ? movingPlatformColliders[i]
+                    : null;
+            float platformVelocityY =
+                movement.y / Mathf.Max(Time.fixedDeltaTime, 0.0001f);
+            bool playerLeavingPlatform =
+                playerBody != null &&
+                playerBody.velocity.y >
+                Mathf.Max(0f, platformVelocityY) + 0.1f;
+            bool carryPlayer =
+                !playerCarried &&
+                !playerLeavingPlatform &&
+                IsPlayerStandingOn(platformCollider);
 
             if (platformBody != null)
             {

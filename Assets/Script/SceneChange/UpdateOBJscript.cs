@@ -10,7 +10,7 @@ public class UpdateOBJscript : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        TheTime.text = StaticTime.Boss1Time.ToString("0.000");
+        TheTime.text = StaticTime.Boss2Time.ToString("0.000");
     }
 
     // Update is called once per frame

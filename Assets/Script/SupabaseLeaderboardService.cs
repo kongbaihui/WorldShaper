@@ -1,13 +1,16 @@
 using System;
 using System.Collections;
+using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 
 public class SupabaseLeaderboardService : MonoBehaviour
 {
-    private const string PlayerIdKey = "LeaderboardPlayerId";
     private const string PlayerNameKey = "PlayerName";
+    private const string PlayerAccountNamespace = "worldshaper/player/";
+    private static readonly Guid UrlNamespaceId =
+        new Guid("6ba7b811-9dad-11d1-80b4-00c04fd430c8");
 
     [SerializeField] private string projectUrl;
     [SerializeField] private string publishableKey;
@@ -40,7 +43,6 @@ public class SupabaseLeaderboardService : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        GetOrCreatePlayerId();
     }
 
     private void OnDestroy()
@@ -69,7 +71,7 @@ public class SupabaseLeaderboardService : MonoBehaviour
         SubmitScoreRequest body = new SubmitScoreRequest
         {
             p_boss_id = bossId,
-            p_player_id = GetOrCreatePlayerId(),
+            p_player_id = CreatePlayerAccountId(playerName),
             p_player_name = playerName,
             p_completion_ms = Mathf.Max(0, completionMilliseconds)
         };
@@ -163,18 +165,49 @@ public class SupabaseLeaderboardService : MonoBehaviour
         return true;
     }
 
-    private static string GetOrCreatePlayerId()
+    private static string CreatePlayerAccountId(string playerName)
     {
-        string playerId = PlayerPrefs.GetString(PlayerIdKey, string.Empty);
-        if (!string.IsNullOrEmpty(playerId))
+        string canonicalName = playerName
+            .Normalize(NormalizationForm.FormC);
+        byte[] namespaceBytes = UrlNamespaceId.ToByteArray();
+        SwapGuidByteOrder(namespaceBytes);
+
+        byte[] nameBytes = Encoding.UTF8.GetBytes(
+            PlayerAccountNamespace + canonicalName);
+        byte[] hashInput = new byte[namespaceBytes.Length + nameBytes.Length];
+        Buffer.BlockCopy(namespaceBytes, 0, hashInput, 0, namespaceBytes.Length);
+        Buffer.BlockCopy(nameBytes, 0, hashInput, namespaceBytes.Length, nameBytes.Length);
+
+        byte[] hash;
+        using (SHA1 sha1 = SHA1.Create())
         {
-            return playerId;
+            hash = sha1.ComputeHash(hashInput);
         }
 
-        playerId = Guid.NewGuid().ToString();
-        PlayerPrefs.SetString(PlayerIdKey, playerId);
-        PlayerPrefs.Save();
-        return playerId;
+        byte[] accountIdBytes = new byte[16];
+        Buffer.BlockCopy(hash, 0, accountIdBytes, 0, accountIdBytes.Length);
+
+        // RFC 4122 version 5 (name-based SHA-1) UUID.
+        accountIdBytes[6] = (byte)((accountIdBytes[6] & 0x0F) | 0x50);
+        accountIdBytes[8] = (byte)((accountIdBytes[8] & 0x3F) | 0x80);
+        SwapGuidByteOrder(accountIdBytes);
+
+        return new Guid(accountIdBytes).ToString("D");
+    }
+
+    private static void SwapGuidByteOrder(byte[] guidBytes)
+    {
+        Swap(guidBytes, 0, 3);
+        Swap(guidBytes, 1, 2);
+        Swap(guidBytes, 4, 5);
+        Swap(guidBytes, 6, 7);
+    }
+
+    private static void Swap(byte[] bytes, int leftIndex, int rightIndex)
+    {
+        byte value = bytes[leftIndex];
+        bytes[leftIndex] = bytes[rightIndex];
+        bytes[rightIndex] = value;
     }
 
     private static string GetRequestError(UnityWebRequest request)

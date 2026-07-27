@@ -60,11 +60,13 @@ public class heroscrip : MonoBehaviour
     [SerializeField] private LayerMask jumpableLayers = (1 << 6) | (1 << 7);
     [SerializeField, Min(0.01f)] private float groundCheckDistance = 0.12f;
     [SerializeField, Range(0f, 1f)] private float minimumGroundNormalY = 0.65f;
+    [SerializeField, Min(0f)] private float groundedGraceTime = 0.1f;
     [SerializeField, Min(0f)] private float stableWallSpeed = 0.25f;
     [SerializeField, Min(0f)] private float stableWallAngularSpeed = 2f;
 
     private readonly RaycastHit2D[] groundHits = new RaycastHit2D[8];
     private bool canDropThroughCurrentSurface;
+    private float lastGroundedTime = float.NegativeInfinity;
 
     //添加的内容
     private PlayerTerrainController terrainController;
@@ -129,9 +131,17 @@ public class heroscrip : MonoBehaviour
                 GiveAnimationRun(false);
             }
             bool onGround = OnTheGround();
+            if (onGround)
+            {
+                lastGroundedTime = Time.time;
+            }
+
+            bool canStartJump =
+                onGround ||
+                Time.time - lastGroundedTime <= groundedGraceTime;
 
             //control y
-            if (onGround && !HaveArrowInStay && !IsShootLine)
+            if (canStartJump && !HaveArrowInStay && !IsShootLine)
             {
                 if (GameKeySettings.WasPressed(GameKeyAction.Jump) && !GameKeySettings.IsPressed(GameKeyAction.MoveDown))
                 {
@@ -142,6 +152,7 @@ public class heroscrip : MonoBehaviour
                     jumptime = Time.time + addjumptime;
                     jumpinitialtime = Time.time;
                     canaddjump = true;
+                    lastGroundedTime = float.NegativeInfinity;
                 }
                 else
                 {
