@@ -26,7 +26,9 @@ public sealed class StartSceneCover : MonoBehaviour
     private Camera mainCamera;
     private SpriteRenderer backgroundRenderer;
     private AudioSource buttonAudioSource;
-    private ParticleSystem caveDust;
+    private ParticleSystem glowSpecks;
+    private Material glowSpeckMaterial;
+    private Texture2D glowSpeckTexture;
     private RectTransform[] menuButtons;
     private Vector3[] menuBaseScales;
     private CanvasGroup[] menuCanvasGroups;
@@ -34,8 +36,6 @@ public sealed class StartSceneCover : MonoBehaviour
     private float[] menuHoverAmounts;
     private Image fadeImage;
     private CanvasGroup fadeCanvasGroup;
-    private float animationTime;
-    private float backgroundEntranceProgress;
     private bool menuEntranceComplete;
     private Vector2 backgroundReferenceOffset;
 
@@ -53,7 +53,7 @@ public sealed class StartSceneCover : MonoBehaviour
         ConfigureCanvas(canvas);
         ConfigureReferenceBackground(canvas.transform);
         CreateBackground();
-        CreateCaveDust();
+        CreateGlowSpecks();
         FindMenuElements(canvas.transform);
         CreateFadePanel(canvas.transform);
     }
@@ -65,7 +65,6 @@ public sealed class StartSceneCover : MonoBehaviour
 
     private void Update()
     {
-        animationTime += Time.unscaledDeltaTime;
         UpdateBackground();
         UpdateMenuHover();
     }
@@ -131,68 +130,164 @@ public sealed class StartSceneCover : MonoBehaviour
         float viewWidth = viewHeight * mainCamera.aspect;
         Vector2 spriteSize = backgroundRenderer.sprite.bounds.size;
         float coverScale = Mathf.Max(viewWidth / spriteSize.x, viewHeight / spriteSize.y);
-        float settledZoom = Mathf.Lerp(1.06f, 1.018f, SmoothStep(backgroundEntranceProgress));
-        float breathingZoom = Mathf.Sin(animationTime * 0.34f) * 0.008f;
         backgroundRenderer.transform.localScale =
-            Vector3.one * coverScale * (settledZoom + breathingZoom);
+            Vector3.one * coverScale * 1.018f;
 
-        float panStrength = SmoothStep(backgroundEntranceProgress);
-        float panX = Mathf.Sin(animationTime * 0.11f) * viewWidth * 0.0045f * panStrength;
-        float panY = Mathf.Cos(animationTime * 0.09f) * viewHeight * 0.003f * panStrength;
         float referenceOffsetX = backgroundReferenceOffset.x / 1920f * viewWidth;
         float referenceOffsetY = backgroundReferenceOffset.y / 1080f * viewHeight;
         Vector3 cameraPosition = mainCamera.transform.position;
         backgroundRenderer.transform.position =
             new Vector3(
-                cameraPosition.x + referenceOffsetX + panX,
-                cameraPosition.y + referenceOffsetY + panY,
+                cameraPosition.x + referenceOffsetX,
+                cameraPosition.y + referenceOffsetY,
                 cameraPosition.z + 20f);
     }
 
-    private void CreateCaveDust()
+    private void CreateGlowSpecks()
     {
-        GameObject dustObject = new GameObject("CaveDust");
+        GameObject dustObject = new GameObject("CaveGlowSpecks");
         dustObject.transform.SetParent(transform, false);
-        caveDust = dustObject.AddComponent<ParticleSystem>();
+        glowSpecks = dustObject.AddComponent<ParticleSystem>();
 
-        ParticleSystem.MainModule main = caveDust.main;
+        ParticleSystem.MainModule main = glowSpecks.main;
         main.loop = true;
         main.prewarm = true;
+        main.useUnscaledTime = true;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 64;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(10f, 16f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(0.015f, 0.045f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.025f, 0.075f);
-        main.startColor = new ParticleSystem.MinMaxGradient(
-            new Color(0.76f, 0.70f, 0.58f, 0.07f),
-            new Color(0.95f, 0.88f, 0.70f, 0.18f));
-
-        ParticleSystem.EmissionModule emission = caveDust.emission;
-        emission.rateOverTime = 4f;
-
-        ParticleSystem.ShapeModule shape = caveDust.shape;
-        shape.shapeType = ParticleSystemShapeType.Box;
+        main.maxParticles = 36;
         float viewHeight = mainCamera.orthographicSize * 2f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(3.8f, 6.2f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.002f, 0.012f);
+        main.startSize = new ParticleSystem.MinMaxCurve(
+            viewHeight * 0.004f,
+            viewHeight * 0.011f);
+        main.startColor = new ParticleSystem.MinMaxGradient(
+            new Color(0.20f, 1f, 0.84f, 1f),
+            new Color(1f, 0.62f, 0.20f, 1f));
+
+        ParticleSystem.EmissionModule emission = glowSpecks.emission;
+        emission.rateOverTime = 3.2f;
+
+        ParticleSystem.ShapeModule shape = glowSpecks.shape;
+        shape.shapeType = ParticleSystemShapeType.Box;
         shape.scale = new Vector3(viewHeight * mainCamera.aspect, viewHeight, 0.1f);
 
-        ParticleSystem.VelocityOverLifetimeModule velocity = caveDust.velocityOverLifetime;
+        ParticleSystem.VelocityOverLifetimeModule velocity = glowSpecks.velocityOverLifetime;
         velocity.enabled = true;
         velocity.space = ParticleSystemSimulationSpace.World;
-        velocity.x = new ParticleSystem.MinMaxCurve(-0.018f, 0.018f);
-        velocity.y = new ParticleSystem.MinMaxCurve(0.015f, 0.045f);
+        velocity.x = new ParticleSystem.MinMaxCurve(-0.008f, 0.008f);
+        velocity.y = new ParticleSystem.MinMaxCurve(0.004f, 0.014f);
         velocity.z = new ParticleSystem.MinMaxCurve(0f, 0f);
 
-        ParticleSystem.CollisionModule collision = caveDust.collision;
+        Gradient fadeGradient = new Gradient();
+        fadeGradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(0f, 0f),
+                new GradientAlphaKey(0.82f, 0.18f),
+                new GradientAlphaKey(0.58f, 0.7f),
+                new GradientAlphaKey(0f, 1f)
+            });
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime =
+            glowSpecks.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        colorOverLifetime.color = new ParticleSystem.MinMaxGradient(fadeGradient);
+
+        AnimationCurve glowSize = new AnimationCurve(
+            new Keyframe(0f, 0.55f),
+            new Keyframe(0.2f, 1f),
+            new Keyframe(0.72f, 0.88f),
+            new Keyframe(1f, 0.48f));
+        ParticleSystem.SizeOverLifetimeModule sizeOverLifetime =
+            glowSpecks.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, glowSize);
+
+        ParticleSystem.CollisionModule collision = glowSpecks.collision;
         collision.enabled = false;
-        ParticleSystem.TrailModule trails = caveDust.trails;
+        ParticleSystem.TrailModule trails = glowSpecks.trails;
         trails.enabled = false;
-        ParticleSystem.LightsModule lights = caveDust.lights;
+        ParticleSystem.LightsModule lights = glowSpecks.lights;
         lights.enabled = false;
 
         ParticleSystemRenderer renderer = dustObject.GetComponent<ParticleSystemRenderer>();
         renderer.sortingOrder = -50;
+        renderer.sharedMaterial = CreateGlowSpeckMaterial();
         dustObject.transform.position =
             new Vector3(mainCamera.transform.position.x, mainCamera.transform.position.y, 0f);
+
+        glowSpecks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        glowSpecks.Play(true);
+        glowSpecks.Emit(12);
+    }
+
+    private Material CreateGlowSpeckMaterial()
+    {
+        Shader glowShader = Shader.Find("Sprites/Default");
+        if (glowShader == null)
+        {
+            Debug.LogWarning("StartSceneCover: Sprites/Default shader is unavailable.");
+            return null;
+        }
+
+        const int textureSize = 32;
+        glowSpeckTexture = new Texture2D(
+            textureSize,
+            textureSize,
+            TextureFormat.RGBA32,
+            false,
+            true)
+        {
+            name = "StartSceneGlowSpeckTexture",
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+            hideFlags = HideFlags.DontSave
+        };
+
+        Color[] pixels = new Color[textureSize * textureSize];
+        for (int y = 0; y < textureSize; y++)
+        {
+            for (int x = 0; x < textureSize; x++)
+            {
+                float normalizedX = ((x + 0.5f) / textureSize) * 2f - 1f;
+                float normalizedY = ((y + 0.5f) / textureSize) * 2f - 1f;
+                float distance = Mathf.Sqrt(
+                    normalizedX * normalizedX + normalizedY * normalizedY);
+                float glow = Mathf.Clamp01(1f - distance);
+                float alpha = glow * glow;
+                pixels[y * textureSize + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+
+        glowSpeckTexture.SetPixels(pixels);
+        glowSpeckTexture.Apply(false, true);
+
+        glowSpeckMaterial = new Material(glowShader)
+        {
+            name = "StartSceneGlowSpeckMaterial",
+            mainTexture = glowSpeckTexture,
+            hideFlags = HideFlags.DontSave
+        };
+        return glowSpeckMaterial;
+    }
+
+    private void OnDestroy()
+    {
+        if (glowSpeckMaterial != null)
+        {
+            Destroy(glowSpeckMaterial);
+        }
+
+        if (glowSpeckTexture != null)
+        {
+            Destroy(glowSpeckTexture);
+        }
     }
 
     private void FindMenuElements(Transform canvasTransform)
@@ -306,7 +401,6 @@ public sealed class StartSceneCover : MonoBehaviour
         while (elapsed < totalDuration)
         {
             elapsed += Time.unscaledDeltaTime;
-            backgroundEntranceProgress = Mathf.Clamp01(elapsed / FadeDuration);
 
             float fadeT = Mathf.Clamp01(elapsed / FadeDuration);
             if (fadeCanvasGroup != null)
@@ -318,7 +412,6 @@ public sealed class StartSceneCover : MonoBehaviour
             yield return null;
         }
 
-        backgroundEntranceProgress = 1f;
         CompleteMenuEntrance();
         menuEntranceComplete = true;
         if (fadeCanvasGroup != null)

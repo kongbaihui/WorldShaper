@@ -25,8 +25,28 @@ public class SecondBossController : MonoBehaviour
     [SerializeField] private Rigidbody2D bossBody;
     [SerializeField] private PrototypeDamageable bossDamageable;
     [SerializeField] private Animator bossAnimator;
+    [SerializeField] private SpriteRenderer bossRenderer;
     [SerializeField] private TerrainRegistry terrainRegistry;
     [SerializeField] private TerrainDamageService terrainDamageService;
+
+    [Header("Hit Reaction")]
+    [SerializeField, Min(0.05f)] private float hitReactionDuration = 0.2f;
+    [SerializeField, Range(0f, 0.35f)] private float hitSquashAmount = 0.12f;
+
+    [Header("Phase Three Transition")]
+    [SerializeField, Min(0.1f)] private float phaseThreeWindupDuration = 1.5f;
+    [SerializeField, Min(0f)] private float phaseThreeGraceDuration = 2f;
+    [SerializeField, Range(0f, 0.35f)] private float phaseThreePulseScale = 0.16f;
+    [SerializeField] private Color phaseThreeWarningColor =
+        new Color(1f, 0.16f, 0.08f, 1f);
+    [SerializeField, Min(0.1f)] private float phaseThreeShockwaveDuration =
+        0.75f;
+    [SerializeField, Min(1f)] private float phaseThreeShockwaveRadius = 82f;
+    [SerializeField, Min(0.05f)] private float phaseThreeShockwaveWidth = 1.2f;
+    [SerializeField, Range(24, 160)] private int phaseThreeShockwaveSegments =
+        96;
+    [SerializeField] private Color phaseThreeShockwaveColor =
+        new Color(1f, 0.72f, 0.22f, 0.95f);
 
     [Header("Body Contact Damage")]
     [SerializeField, Min(1)] private int bodyContactDamage = 10;
@@ -96,6 +116,10 @@ public class SecondBossController : MonoBehaviour
     private readonly HashSet<int> damagedTerrainIds = new HashSet<int>();
     private readonly HashSet<Collider2D> bodyContactColliders =
         new HashSet<Collider2D>();
+    private readonly List<SpriteRenderer> transitionPlatformRenderers =
+        new List<SpriteRenderer>();
+    private readonly List<Color> transitionPlatformBaseColors =
+        new List<Color>();
 
     private Vector3[] platformStartPositions;
     private Rigidbody2D[] movingPlatformBodies;
@@ -103,15 +127,26 @@ public class SecondBossController : MonoBehaviour
     private Collider2D playerCollider;
     private PrototypeDamageable bodyContactTarget;
     private heroscrip playerController;
+    private Coroutine laserRoutine;
+    private Coroutine tailRoutine;
+    private Coroutine batRoutine;
+    private Coroutine hitReactionRoutine;
+    private Coroutine phaseThreeTransitionRoutine;
+    private GameObject phaseThreeShockwaveObject;
+    private Material phaseThreeShockwaveMaterial;
+    private Vector3 baseBossScale;
+    private Color baseBossColor;
     private float phaseTwoStartedAt;
     private float nextBodyDamageTime;
     private int sharedTailHealth;
     private int previousLeftTailHealth;
     private int previousRightTailHealth;
+    private int previousBossHealth;
     private int currentPhase = 1;
     private bool syncingTailHealth;
     private bool tailDefeated;
     private bool hasShatteredTerrain;
+    private bool phaseThreeTransitioning;
     private bool bossDead;
     private bool laserPreparing;
     private bool laserActive;
@@ -133,6 +168,17 @@ public class SecondBossController : MonoBehaviour
         {
             bossAnimator = GetComponent<Animator>();
         }
+
+        if (bossRenderer == null)
+        {
+            bossRenderer = GetComponent<SpriteRenderer>();
+        }
+
+        baseBossScale = transform.localScale;
+        baseBossColor =
+            bossRenderer != null ? bossRenderer.color : Color.white;
+        previousBossHealth =
+            bossDamageable != null ? bossDamageable.CurrentHealth : 0;
 
         if (player != null)
         {
@@ -177,6 +223,15 @@ public class SecondBossController : MonoBehaviour
                 topSpikeDamageables[1].HealthChanged +=
                     HandleRightTopSpikeHealth;
             }
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (bossDamageable != null)
+        {
+            previousBossHealth = bossDamageable.CurrentHealth;
+            bossDamageable.HealthChanged += HandleBossHealthChanged;
         }
     }
 
@@ -251,9 +306,7 @@ public class SecondBossController : MonoBehaviour
             RestorePlatformsToStartPositions();
         }
 
-        StartCoroutine(LaserRoutine());
-        StartCoroutine(TailRoutine());
-        StartCoroutine(BatRoutine());
+        StartBossAttackRoutines();
     }
 
     private void Update()
@@ -338,6 +391,7 @@ public class SecondBossController : MonoBehaviour
     private void DamageHeroOnContact()
     {
         if (bossDead ||
+            phaseThreeTransitioning ||
             bossDamageable == null ||
             !bossDamageable.IsAlive ||
             bodyContactColliders.Count == 0 ||
@@ -364,6 +418,14 @@ public class SecondBossController : MonoBehaviour
             bossDamageable == null ||
             !bossDamageable.IsAlive)
         {
+            return;
+        }
+
+        if (phaseThreeTransitioning)
+        {
+            bossBody.velocity = Vector2.zero;
+            bossBody.MovePosition(
+                new Vector2(bossBody.position.x, bossGroundY));
             return;
         }
 
@@ -876,7 +938,7 @@ public class SecondBossController : MonoBehaviour
         StopTailAnimationAndHide(leftTail, leftTailCollider);
         StopTailAnimationAndHide(rightTail, rightTailCollider);
         currentPhase = 3;
-        ShatterTerrainOnce();
+        BeginPhaseThreeTransition();
     }
 
     private IEnumerator BatRoutine()
@@ -1092,20 +1154,312 @@ public class SecondBossController : MonoBehaviour
             targetPhase = 2;
         }
 
-        if (targetPhase > currentPhase)
+        if (targetPhase == 3 && currentPhase < 3)
         {
-            if (currentPhase < 2 && targetPhase == 2)
+            currentPhase = 3;
+            BeginPhaseThreeTransition();
+            return;
+        }
+
+        if (targetPhase == 2 && currentPhase < 2)
+        {
+            phaseTwoStartedAt = Time.time;
+            currentPhase = 2;
+        }
+    }
+
+    private void BeginPhaseThreeTransition()
+    {
+        if (phaseThreeTransitioning ||
+            hasShatteredTerrain ||
+            bossDead ||
+            bossDamageable == null ||
+            !bossDamageable.IsAlive)
+        {
+            return;
+        }
+
+        phaseThreeTransitioning = true;
+        StopBossAttackRoutines();
+        StopHitReaction();
+        ClearSpawnedBats();
+        StopTailAnimationAndHide(leftTail, leftTailCollider);
+        StopTailAnimationAndHide(rightTail, rightTailCollider);
+
+        laserPreparing = false;
+        laserActive = false;
+        if (laserVisual != null)
+        {
+            laserVisual.enabled = false;
+        }
+
+        if (bossBody != null)
+        {
+            bossBody.velocity = Vector2.zero;
+        }
+
+        phaseThreeTransitionRoutine =
+            StartCoroutine(PhaseThreeTransitionRoutine());
+    }
+
+    private IEnumerator PhaseThreeTransitionRoutine()
+    {
+        if (bossDamageable != null)
+        {
+            bossDamageable.CancelDamageFlash(false);
+        }
+
+        CacheTransitionPlatformRenderers();
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.1f, phaseThreeWindupDuration);
+
+        while (elapsed < duration &&
+               !bossDead &&
+               bossDamageable != null &&
+               bossDamageable.IsAlive)
+        {
+            elapsed += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float pulse = 0.5f +
+                          0.5f *
+                          Mathf.Sin(progress * Mathf.PI * 10f);
+            float intensity =
+                Mathf.Lerp(0.2f, 1f, progress) *
+                Mathf.Lerp(0.55f, 1f, pulse);
+            float scalePulse = phaseThreePulseScale * intensity;
+
+            transform.localScale = new Vector3(
+                baseBossScale.x * (1f + scalePulse),
+                baseBossScale.y * (1f - scalePulse * 0.45f),
+                baseBossScale.z);
+
+            if (bossRenderer != null)
             {
-                phaseTwoStartedAt = Time.time;
+                bossRenderer.color = Color.Lerp(
+                    baseBossColor,
+                    phaseThreeWarningColor,
+                    intensity);
             }
 
-            currentPhase = targetPhase;
+            UpdatePlatformWarning(intensity);
+            yield return null;
         }
 
-        if (currentPhase >= 3)
+        RestoreBossPresentation();
+        RestorePlatformWarning();
+
+        if (bossDead ||
+            bossDamageable == null ||
+            !bossDamageable.IsAlive)
         {
-            ShatterTerrainOnce();
+            phaseThreeTransitioning = false;
+            phaseThreeTransitionRoutine = null;
+            yield break;
         }
+
+        ShatterTerrainOnce();
+        StartCoroutine(PhaseThreeShockwaveRoutine());
+
+        // 平台消失后留出明确的无攻击窗口，让玩家先处理落点。
+        float graceElapsed = 0f;
+        float graceDuration = Mathf.Max(0f, phaseThreeGraceDuration);
+        while (graceElapsed < graceDuration &&
+               !bossDead &&
+               bossDamageable.IsAlive)
+        {
+            graceElapsed += Time.deltaTime;
+            float pulse =
+                0.5f +
+                0.5f * Mathf.Sin(graceElapsed * Mathf.PI * 2f);
+            if (bossRenderer != null)
+            {
+                bossRenderer.color = Color.Lerp(
+                    baseBossColor,
+                    phaseThreeWarningColor,
+                    pulse * 0.2f);
+            }
+
+            yield return null;
+        }
+
+        RestoreBossPresentation();
+        phaseThreeTransitioning = false;
+        phaseThreeTransitionRoutine = null;
+
+        if (!bossDead && bossDamageable.IsAlive)
+        {
+            StartBossAttackRoutines();
+        }
+    }
+
+    private IEnumerator PhaseThreeShockwaveRoutine()
+    {
+        CleanupPhaseThreeShockwave();
+
+        Shader spriteShader = Shader.Find("Sprites/Default");
+        if (spriteShader == null)
+        {
+            yield break;
+        }
+
+        phaseThreeShockwaveObject =
+            new GameObject("Boss2PhaseThreePlatformShockwave");
+        phaseThreeShockwaveObject.transform.position = Vector3.zero;
+
+        LineRenderer lineRenderer =
+            phaseThreeShockwaveObject.AddComponent<LineRenderer>();
+        phaseThreeShockwaveMaterial = new Material(spriteShader);
+        lineRenderer.sharedMaterial = phaseThreeShockwaveMaterial;
+        lineRenderer.useWorldSpace = true;
+        lineRenderer.loop = true;
+        lineRenderer.alignment = LineAlignment.View;
+        lineRenderer.textureMode = LineTextureMode.Stretch;
+        lineRenderer.numCornerVertices = 4;
+        lineRenderer.numCapVertices = 4;
+        lineRenderer.shadowCastingMode =
+            UnityEngine.Rendering.ShadowCastingMode.Off;
+        lineRenderer.receiveShadows = false;
+
+        if (bossRenderer != null)
+        {
+            lineRenderer.sortingLayerID = bossRenderer.sortingLayerID;
+            lineRenderer.sortingOrder = bossRenderer.sortingOrder + 10;
+        }
+
+        int segmentCount =
+            Mathf.Clamp(phaseThreeShockwaveSegments, 24, 160);
+        lineRenderer.positionCount = segmentCount;
+
+        Vector3 center = transform.position;
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.1f, phaseThreeShockwaveDuration);
+        float maximumRadius = Mathf.Max(1f, phaseThreeShockwaveRadius);
+        float startingWidth = Mathf.Max(0.05f, phaseThreeShockwaveWidth);
+
+        while (elapsed < duration &&
+               !bossDead &&
+               bossDamageable != null &&
+               bossDamageable.IsAlive)
+        {
+            elapsed += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float easedProgress =
+                1f - Mathf.Pow(1f - progress, 3f);
+            float radius = maximumRadius * easedProgress;
+            float alpha = Mathf.Pow(1f - progress, 2f);
+            Color ringColor = phaseThreeShockwaveColor;
+            ringColor.a *= alpha;
+
+            lineRenderer.startColor = ringColor;
+            lineRenderer.endColor = ringColor;
+            lineRenderer.startWidth =
+                Mathf.Lerp(startingWidth, 0.05f, progress);
+            lineRenderer.endWidth = lineRenderer.startWidth;
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                float angle =
+                    i / (float)segmentCount * Mathf.PI * 2f;
+                lineRenderer.SetPosition(
+                    i,
+                    center +
+                    new Vector3(
+                        Mathf.Cos(angle) * radius,
+                        Mathf.Sin(angle) * radius,
+                        0f));
+            }
+
+            yield return null;
+        }
+
+        CleanupPhaseThreeShockwave();
+    }
+
+    private void CleanupPhaseThreeShockwave()
+    {
+        if (phaseThreeShockwaveObject != null)
+        {
+            Destroy(phaseThreeShockwaveObject);
+            phaseThreeShockwaveObject = null;
+        }
+
+        if (phaseThreeShockwaveMaterial != null)
+        {
+            Destroy(phaseThreeShockwaveMaterial);
+            phaseThreeShockwaveMaterial = null;
+        }
+    }
+
+    private void CacheTransitionPlatformRenderers()
+    {
+        transitionPlatformRenderers.Clear();
+        transitionPlatformBaseColors.Clear();
+
+        if (platformsToShatter == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < platformsToShatter.Length; i++)
+        {
+            GameObject platform = platformsToShatter[i];
+            if (platform == null)
+            {
+                continue;
+            }
+
+            SpriteRenderer[] renderers =
+                platform.GetComponentsInChildren<SpriteRenderer>(true);
+            for (int rendererIndex = 0;
+                 rendererIndex < renderers.Length;
+                 rendererIndex++)
+            {
+                SpriteRenderer renderer = renderers[rendererIndex];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                transitionPlatformRenderers.Add(renderer);
+                transitionPlatformBaseColors.Add(renderer.color);
+            }
+        }
+    }
+
+    private void UpdatePlatformWarning(float intensity)
+    {
+        int count = Mathf.Min(
+            transitionPlatformRenderers.Count,
+            transitionPlatformBaseColors.Count);
+        for (int i = 0; i < count; i++)
+        {
+            SpriteRenderer renderer = transitionPlatformRenderers[i];
+            if (renderer != null)
+            {
+                renderer.color = Color.Lerp(
+                    transitionPlatformBaseColors[i],
+                    phaseThreeWarningColor,
+                    intensity);
+            }
+        }
+    }
+
+    private void RestorePlatformWarning()
+    {
+        int count = Mathf.Min(
+            transitionPlatformRenderers.Count,
+            transitionPlatformBaseColors.Count);
+        for (int i = 0; i < count; i++)
+        {
+            if (transitionPlatformRenderers[i] != null)
+            {
+                transitionPlatformRenderers[i].color =
+                    transitionPlatformBaseColors[i];
+            }
+        }
+
+        transitionPlatformRenderers.Clear();
+        transitionPlatformBaseColors.Clear();
     }
 
     private void ShatterTerrainOnce()
@@ -1141,8 +1495,151 @@ public class SecondBossController : MonoBehaviour
             }
         }
 
+        RevealAllGrappleHooks();
         BreakTopSpike(0);
         BreakTopSpike(1);
+    }
+
+    private void RevealAllGrappleHooks()
+    {
+        if (grappleHooks == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < grappleHooks.Length; i++)
+        {
+            if (grappleHooks[i] != null)
+            {
+                grappleHooks[i].SetActive(true);
+            }
+        }
+    }
+
+    private void HandleBossHealthChanged(int current, int maximum)
+    {
+        bool tookDamage = current < previousBossHealth;
+        previousBossHealth = current;
+
+        if (tookDamage &&
+            current > 0 &&
+            !phaseThreeTransitioning &&
+            !bossDead)
+        {
+            PlayHitReaction();
+        }
+    }
+
+    private void PlayHitReaction()
+    {
+        if (hitReactionRoutine != null)
+        {
+            StopCoroutine(hitReactionRoutine);
+        }
+
+        transform.localScale = baseBossScale;
+        hitReactionRoutine = StartCoroutine(HitReactionRoutine());
+    }
+
+    private IEnumerator HitReactionRoutine()
+    {
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.05f, hitReactionDuration);
+
+        while (elapsed < duration &&
+               !bossDead &&
+               !phaseThreeTransitioning &&
+               bossDamageable != null &&
+               bossDamageable.IsAlive)
+        {
+            elapsed += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float pulse = Mathf.Sin(progress * Mathf.PI);
+            float squash = hitSquashAmount * pulse;
+            transform.localScale = new Vector3(
+                baseBossScale.x * (1f + squash),
+                baseBossScale.y * (1f - squash),
+                baseBossScale.z);
+            yield return null;
+        }
+
+        transform.localScale = baseBossScale;
+        hitReactionRoutine = null;
+    }
+
+    private void StopHitReaction()
+    {
+        if (hitReactionRoutine != null)
+        {
+            StopCoroutine(hitReactionRoutine);
+            hitReactionRoutine = null;
+        }
+
+        transform.localScale = baseBossScale;
+    }
+
+    private void RestoreBossPresentation()
+    {
+        transform.localScale = baseBossScale;
+        if (bossRenderer != null)
+        {
+            bossRenderer.color = baseBossColor;
+        }
+    }
+
+    private void StartBossAttackRoutines()
+    {
+        if (bossDead || phaseThreeTransitioning)
+        {
+            return;
+        }
+
+        if (laserRoutine == null)
+        {
+            laserRoutine = StartCoroutine(LaserRoutine());
+        }
+
+        if (!tailDefeated && tailRoutine == null)
+        {
+            tailRoutine = StartCoroutine(TailRoutine());
+        }
+
+        if (batRoutine == null)
+        {
+            batRoutine = StartCoroutine(BatRoutine());
+        }
+    }
+
+    private void StopBossAttackRoutines()
+    {
+        StopRoutine(ref laserRoutine);
+        StopRoutine(ref tailRoutine);
+        StopRoutine(ref batRoutine);
+    }
+
+    private void StopRoutine(ref Coroutine routine)
+    {
+        if (routine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(routine);
+        routine = null;
+    }
+
+    private void ClearSpawnedBats()
+    {
+        for (int i = 0; i < spawnedBats.Count; i++)
+        {
+            if (spawnedBats[i] != null)
+            {
+                spawnedBats[i].gameObject.SetActive(false);
+                Destroy(spawnedBats[i].gameObject);
+            }
+        }
+
+        spawnedBats.Clear();
     }
 
     private void HandleLeftTopSpikeHealth(int current, int maximum)
@@ -1234,13 +1731,20 @@ public class SecondBossController : MonoBehaviour
             body.WakeUp();
 
             StartCoroutine(WatchDroppedTopSpike(index, body));
+            return;
         }
 
-        if (grappleHooks != null &&
-            index < grappleHooks.Length &&
-            grappleHooks[index] != null)
+        HideTopSpike(index);
+    }
+
+    private void HideTopSpike(int index)
+    {
+        if (topSpikes != null &&
+            index >= 0 &&
+            index < topSpikes.Length &&
+            topSpikes[index] != null)
         {
-            grappleHooks[index].SetActive(true);
+            topSpikes[index].SetActive(false);
         }
     }
 
@@ -1255,6 +1759,7 @@ public class SecondBossController : MonoBehaviour
             : null;
         if (spikeCollider == null)
         {
+            HideTopSpike(index);
             yield break;
         }
 
@@ -1286,6 +1791,8 @@ public class SecondBossController : MonoBehaviour
 
             yield return new WaitForFixedUpdate();
         }
+
+        HideTopSpike(index);
     }
 
     private bool ConsumeDroppedTopSpikeContact(
@@ -1305,6 +1812,7 @@ public class SecondBossController : MonoBehaviour
             PrototypeDamageable target =
                 other.GetComponentInParent<PrototypeDamageable>();
             if (target != null &&
+                !phaseThreeTransitioning &&
                 target.Owner == TerrainOwner.Player)
             {
                 target.TryApplyDamage(
@@ -1313,6 +1821,7 @@ public class SecondBossController : MonoBehaviour
                     body.transform);
             }
 
+            body.gameObject.SetActive(false);
             Destroy(body.gameObject);
             return true;
         }
@@ -1353,9 +1862,18 @@ public class SecondBossController : MonoBehaviour
         }
 
         bossDead = true;
+        phaseThreeTransitioning = false;
         laserPreparing = false;
         laserActive = false;
         StopAllCoroutines();
+        laserRoutine = null;
+        tailRoutine = null;
+        batRoutine = null;
+        hitReactionRoutine = null;
+        phaseThreeTransitionRoutine = null;
+        RestorePlatformWarning();
+        RestoreBossPresentation();
+        CleanupPhaseThreeShockwave();
 
         if (bossBody != null)
         {
@@ -1370,19 +1888,18 @@ public class SecondBossController : MonoBehaviour
         StopTailAnimationAndHide(leftTail, leftTailCollider);
         StopTailAnimationAndHide(rightTail, rightTailCollider);
 
-        for (int i = 0; i < spawnedBats.Count; i++)
-        {
-            if (spawnedBats[i] != null)
-            {
-                Destroy(spawnedBats[i].gameObject);
-            }
-        }
-
-        spawnedBats.Clear();
+        ClearSpawnedBats();
     }
 
     private void OnDisable()
     {
+        CleanupPhaseThreeShockwave();
+
+        if (bossDamageable != null)
+        {
+            bossDamageable.HealthChanged -= HandleBossHealthChanged;
+        }
+
         if (leftTailDamageable != null)
         {
             leftTailDamageable.HealthChanged -= HandleLeftTailHealth;

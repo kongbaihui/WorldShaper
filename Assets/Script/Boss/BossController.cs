@@ -54,6 +54,10 @@ namespace FinalGame.Boss
         [SerializeField] private BossTerrainAttackController terrainAttackController;
         [SerializeField] private SpriteRenderer bossRenderer;
 
+        [Header("Hit Reaction")]
+        [SerializeField, Min(0.05f)] private float hitReactionDuration = 0.22f;
+        [SerializeField, Range(0f, 0.35f)] private float hitSquashAmount = 0.14f;
+
         [Header("Detection and Timing")]
         [SerializeField, Min(0.1f)] private float activationRange = 90f;
         [SerializeField, Min(0.1f)] private float closeDistanceThreshold = 15f;
@@ -86,6 +90,7 @@ namespace FinalGame.Boss
         };
 
         private Coroutine activeRoutine;
+        private Coroutine hitReactionRoutine;
         private float recoverUntil;
         private Vector3 baseScale;
         private Color baseColor;
@@ -183,6 +188,7 @@ namespace FinalGame.Boss
             }
 
             CancelCurrentAttack();
+            StopHitReaction();
         }
 
         private void OnValidate()
@@ -408,15 +414,25 @@ namespace FinalGame.Boss
             }
 
             bool phaseTransitionStarted = TryBeginPhaseTransition(currentHealth, maximumHealth);
+            bool tookDamage = currentHealth < lastObservedHealth;
             bool attackInProgress =
                 CurrentState == BossState.Telegraph ||
                 CurrentState == BossState.ExecuteAttack;
+
+            // 受击表现独立于状态机：攻击中仍然播放，但不会因此打断 Boss 出招。
+            if (tookDamage &&
+                !phaseTransitionStarted &&
+                CurrentState != BossState.PhaseTransition)
+            {
+                PlayHitReaction();
+            }
 
             // 普通受伤不能打断已经开始的攻击，否则玩家连续命中就能让 Boss 无法出招。
             // 死亡和阶段转换仍由上面的逻辑正常中断攻击。
             if (!phaseTransitionStarted &&
                 !attackInProgress &&
-                currentHealth < lastObservedHealth)
+                CurrentState != BossState.PhaseTransition &&
+                tookDamage)
             {
                 CancelCurrentAttack();
                 activeRoutine = StartCoroutine(HurtRoutine());
@@ -452,7 +468,6 @@ namespace FinalGame.Boss
         {
             EnterState(BossState.Hurt);
             yield return new WaitForSeconds(hurtDuration);
-            RestorePhasePresentation();
             activeRoutine = null;
             if (bossDamageable.IsAlive)
             {
@@ -460,8 +475,45 @@ namespace FinalGame.Boss
             }
         }
 
+        private void PlayHitReaction()
+        {
+            if (hitReactionRoutine != null)
+            {
+                StopCoroutine(hitReactionRoutine);
+            }
+
+            transform.localScale = baseScale;
+            hitReactionRoutine = StartCoroutine(HitReactionRoutine());
+        }
+
+        private IEnumerator HitReactionRoutine()
+        {
+            float elapsed = 0f;
+            float duration = Mathf.Max(0.05f, hitReactionDuration);
+
+            while (elapsed < duration &&
+                   bossDamageable != null &&
+                   bossDamageable.IsAlive &&
+                   CurrentState != BossState.PhaseTransition)
+            {
+                elapsed += Time.deltaTime;
+                float progress = Mathf.Clamp01(elapsed / duration);
+                float pulse = Mathf.Sin(progress * Mathf.PI);
+                float squash = hitSquashAmount * pulse;
+                transform.localScale = new Vector3(
+                    baseScale.x * (1f + squash),
+                    baseScale.y * (1f - squash),
+                    baseScale.z);
+                yield return null;
+            }
+
+            transform.localScale = baseScale;
+            hitReactionRoutine = null;
+        }
+
         private IEnumerator PhaseTransitionRoutine()
         {
+            StopHitReaction();
             EnterState(BossState.PhaseTransition);
             bossDamageable.CancelDamageFlash(false);
             float elapsed = 0f;
@@ -496,6 +548,7 @@ namespace FinalGame.Boss
             }
 
             CancelCurrentAttack();
+            StopHitReaction();
             CurrentAttack = BossAttackType.None;
             EnterState(BossState.Dead);
             transform.localScale = baseScale;
@@ -536,6 +589,17 @@ namespace FinalGame.Boss
             {
                 bossRenderer.color = baseColor;
             }
+        }
+
+        private void StopHitReaction()
+        {
+            if (hitReactionRoutine != null)
+            {
+                StopCoroutine(hitReactionRoutine);
+                hitReactionRoutine = null;
+            }
+
+            transform.localScale = baseScale;
         }
 
         private Color GetPhaseColor()
