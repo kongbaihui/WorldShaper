@@ -15,13 +15,16 @@ public class StartMenu : MonoBehaviour
     [SerializeField] private GameObject namePanel;
     [SerializeField] private TMP_InputField nameInput;
     [SerializeField] private TMP_Text nameErrorText;
+    [SerializeField] private GameObject loginButton;
+    [SerializeField] private TMP_Text playerNameText;
+    [SerializeField] private GameObject logoutButton;
 
     private string pendingGameScene;
 
     // Start is called before the first frame update
     void Start()
     {
-        //Òş²ØÓÎÏ·ËµÃ÷Ãæ°å
+        //éšè—æ¸¸æˆè¯´æ˜é¢æ¿
         if (guidePanel != null)
         {
             guidePanel.SetActive(false);
@@ -46,6 +49,8 @@ public class StartMenu : MonoBehaviour
         {
             nameErrorText.text = string.Empty;
         }
+
+        RefreshLoginDisplay();
     }
 
     // Update is called once per frame
@@ -57,7 +62,7 @@ public class StartMenu : MonoBehaviour
         }
     }
 
-    //¿ªÊ¼ÓÎÏ·°´Å¥
+    //å¼€å§‹æ¸¸æˆæŒ‰é’®
     public void StartGame1()
     {
         StartGame(GameScene1);
@@ -77,10 +82,7 @@ public class StartMenu : MonoBehaviour
             return;
         }
 
-        string rawName = nameInput.text ?? string.Empty;
-        string playerName = rawName.Trim();
-        if (playerName.Length < 1 || playerName.Length > 20 ||
-            rawName.IndexOfAny(new[] { '\r', '\n', '\t' }) >= 0)
+        if (!TryNormalizePlayerName(nameInput.text, out string playerName))
         {
             SetNameError("Name must be 1-20 characters without line breaks or tabs.");
             return;
@@ -89,6 +91,7 @@ public class StartMenu : MonoBehaviour
         PlayerPrefs.SetString("PlayerName", playerName);
         PlayerPrefs.Save();
         SetNameError(string.Empty);
+        RefreshLoginDisplay();
 
         if (namePanel != null)
         {
@@ -101,6 +104,43 @@ public class StartMenu : MonoBehaviour
             pendingGameScene = string.Empty;
             SceneManager.LoadScene(sceneToLoad);
         }
+    }
+
+    public void OpenLogin()
+    {
+        pendingGameScene = string.Empty;
+        SetNameError(string.Empty);
+
+        if (namePanel != null)
+        {
+            namePanel.SetActive(true);
+        }
+
+        if (nameInput != null)
+        {
+            nameInput.text = PlayerPrefs.GetString("PlayerName", string.Empty).Trim();
+            nameInput.ActivateInputField();
+        }
+    }
+
+    public void LogoutPlayer()
+    {
+        pendingGameScene = string.Empty;
+        PlayerPrefs.DeleteKey("PlayerName");
+        PlayerPrefs.Save();
+
+        if (nameInput != null)
+        {
+            nameInput.text = string.Empty;
+        }
+
+        if (namePanel != null)
+        {
+            namePanel.SetActive(false);
+        }
+
+        SetNameError(string.Empty);
+        RefreshLoginDisplay();
     }
 
     public void StartTutorial()
@@ -124,7 +164,7 @@ public class StartMenu : MonoBehaviour
         }
     }
 
-    // ÓÎÏ·ËµÃ÷°´Å¥µ÷ÓÃ
+    // æ¸¸æˆè¯´æ˜æŒ‰é’®è°ƒç”¨
     public void OpenGuide()
     {
         if (guidePanel != null)
@@ -141,7 +181,7 @@ public class StartMenu : MonoBehaviour
         }
     }
 
-    // ËµÃ÷½çÃæµÄ·µ»Ø°´Å¥µ÷ÓÃ
+    // è¯´æ˜ç•Œé¢çš„è¿”å›æŒ‰é’®è°ƒç”¨
     public void CloseGuide()
     {
         if (guidePanel != null)
@@ -150,7 +190,7 @@ public class StartMenu : MonoBehaviour
         }
     }
 
-    //ÖÂĞ»½çÃæ°´Å¥µ÷ÓÃ
+    //è‡´è°¢ç•Œé¢æŒ‰é’®è°ƒç”¨
     public void OpenCredit()
     {
         if (creditPanel != null)
@@ -159,7 +199,7 @@ public class StartMenu : MonoBehaviour
         }
     }
 
-    // ÖÂĞ»½çÃæµÄ·µ»Ø°´Å¥µ÷ÓÃ
+    // è‡´è°¢ç•Œé¢çš„è¿”å›æŒ‰é’®è°ƒç”¨
     public void CloseCredit()
     {
         if (creditPanel != null)
@@ -168,10 +208,10 @@ public class StartMenu : MonoBehaviour
         }
     }
 
-    // ÍË³öÓÎÏ·°´Å¥µ÷ÓÃ
+    // é€€å‡ºæ¸¸æˆæŒ‰é’®è°ƒç”¨
     public void QuitGame()
     {
-        Debug.Log("ÍË³öÓÎÏ·");
+        Debug.Log("é€€å‡ºæ¸¸æˆ");
 
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
@@ -183,9 +223,7 @@ public class StartMenu : MonoBehaviour
     private void StartGame(string sceneName)
     {
         string savedName = PlayerPrefs.GetString("PlayerName", string.Empty);
-        string trimmedName = savedName.Trim();
-        if (trimmedName.Length >= 1 && trimmedName.Length <= 20 &&
-            savedName.IndexOfAny(new[] { '\r', '\n', '\t' }) < 0)
+        if (TryNormalizePlayerName(savedName, out string playerName))
         {
             SceneManager.LoadScene(sceneName);
             return;
@@ -196,7 +234,7 @@ public class StartMenu : MonoBehaviour
 
         if (nameInput != null)
         {
-            nameInput.text = trimmedName;
+            nameInput.text = playerName;
         }
 
         if (namePanel != null)
@@ -215,5 +253,39 @@ public class StartMenu : MonoBehaviour
         {
             nameErrorText.text = message;
         }
+    }
+
+    private void RefreshLoginDisplay()
+    {
+        bool isLoggedIn = TryNormalizePlayerName(
+            PlayerPrefs.GetString("PlayerName", string.Empty),
+            out string playerName);
+
+        if (loginButton != null)
+        {
+            loginButton.SetActive(!isLoggedIn);
+        }
+
+        if (playerNameText != null)
+        {
+            playerNameText.text = isLoggedIn
+                ? playerName.Replace("<", "ï¼œ").Replace(">", "ï¼")
+                : string.Empty;
+            playerNameText.gameObject.SetActive(isLoggedIn);
+        }
+
+        if (logoutButton != null)
+        {
+            logoutButton.SetActive(isLoggedIn);
+        }
+    }
+
+    private static bool TryNormalizePlayerName(string rawName, out string playerName)
+    {
+        rawName = rawName ?? string.Empty;
+        playerName = rawName.Trim();
+        return playerName.Length >= 1 &&
+               playerName.Length <= 20 &&
+               rawName.IndexOfAny(new[] { '\r', '\n', '\t' }) < 0;
     }
 }

@@ -94,11 +94,14 @@ public class SecondBossController : MonoBehaviour
         new List<TerrainEntity>();
     private readonly HashSet<int> damagedActorIds = new HashSet<int>();
     private readonly HashSet<int> damagedTerrainIds = new HashSet<int>();
+    private readonly HashSet<Collider2D> bodyContactColliders =
+        new HashSet<Collider2D>();
 
     private Vector3[] platformStartPositions;
     private Rigidbody2D[] movingPlatformBodies;
     private Collider2D[] movingPlatformColliders;
     private Collider2D playerCollider;
+    private PrototypeDamageable bodyContactTarget;
     private heroscrip playerController;
     private float phaseTwoStartedAt;
     private float nextBodyDamageTime;
@@ -271,40 +274,80 @@ public class SecondBossController : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        nextBodyDamageTime = 0f;
-        DamageHeroOnContact(collision.collider);
+        RegisterBodyContact(collision.collider, true);
     }
 
     private void OnCollisionStay2D(Collision2D collision)
     {
-        DamageHeroOnContact(collision.collider);
+        RegisterBodyContact(collision.collider, false);
     }
 
-    private void DamageHeroOnContact(Collider2D other)
+    private void OnCollisionExit2D(Collision2D collision)
     {
-        if (bossDead ||
-            bossDamageable == null ||
-            !bossDamageable.IsAlive ||
-            other == null ||
-            Time.time < nextBodyDamageTime)
+        if (collision.collider != null)
+        {
+            bodyContactColliders.Remove(collision.collider);
+        }
+
+        if (bodyContactColliders.Count == 0)
+        {
+            bodyContactTarget = null;
+            nextBodyDamageTime = 0f;
+        }
+    }
+
+    private void RegisterBodyContact(
+        Collider2D other,
+        bool damageImmediately)
+    {
+        if (!TryGetHeroDamageable(other, out PrototypeDamageable target))
         {
             return;
+        }
+
+        bool contactAdded = bodyContactColliders.Add(other);
+        bodyContactTarget = target;
+
+        if (contactAdded && damageImmediately)
+        {
+            nextBodyDamageTime = 0f;
+            DamageHeroOnContact();
+        }
+    }
+
+    private static bool TryGetHeroDamageable(
+        Collider2D other,
+        out PrototypeDamageable target)
+    {
+        target = null;
+        if (other == null)
+        {
+            return false;
         }
 
         heroscrip hero = other.GetComponentInParent<heroscrip>();
         if (hero == null)
         {
-            return;
+            return false;
         }
 
-        PrototypeDamageable target =
-            hero.GetComponent<PrototypeDamageable>();
-        if (target == null || target.Owner != TerrainOwner.Player)
+        target = hero.GetComponent<PrototypeDamageable>();
+        return target != null && target.Owner == TerrainOwner.Player;
+    }
+
+    private void DamageHeroOnContact()
+    {
+        if (bossDead ||
+            bossDamageable == null ||
+            !bossDamageable.IsAlive ||
+            bodyContactColliders.Count == 0 ||
+            bodyContactTarget == null ||
+            Time.time < nextBodyDamageTime)
         {
             return;
         }
 
-        if (target.TryApplyDamage(
+        if (bodyContactTarget.TryApplyDamage(
             bodyContactDamage,
             TerrainOwner.Boss,
             transform))
@@ -323,6 +366,8 @@ public class SecondBossController : MonoBehaviour
         {
             return;
         }
+
+        DamageHeroOnContact();
 
         if (currentPhase == 2)
         {

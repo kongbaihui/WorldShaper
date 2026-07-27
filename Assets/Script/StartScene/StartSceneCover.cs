@@ -12,10 +12,6 @@ public sealed class StartSceneCover : MonoBehaviour
     private const float MenuDelay = 0.3f;
     private const float MenuItemDuration = 0.48f;
     private const float MenuStagger = 0.09f;
-    private const float MenuSlideDistance = 72f;
-    private const float MenuTopY = -130f;
-    private const float MenuSpacing = 90f;
-    private const float HoverOffset = 8f;
     private const float HoverSpeed = 8f;
 
     private readonly string[] menuButtonNames =
@@ -23,14 +19,15 @@ public sealed class StartSceneCover : MonoBehaviour
         "StartButton",
         "GameInstruction",
         "Credit",
+        "LeaderboardButton",
         "ExitButton"
     };
 
     private Camera mainCamera;
     private SpriteRenderer backgroundRenderer;
+    private AudioSource buttonAudioSource;
     private ParticleSystem caveDust;
     private RectTransform[] menuButtons;
-    private Vector2[] menuBasePositions;
     private Vector3[] menuBaseScales;
     private CanvasGroup[] menuCanvasGroups;
     private bool[] menuHovered;
@@ -45,6 +42,7 @@ public sealed class StartSceneCover : MonoBehaviour
     private void Awake()
     {
         mainCamera = Camera.main;
+        buttonAudioSource = GetComponent<AudioSource>();
         Canvas canvas = FindObjectOfType<Canvas>();
         if (canvas == null || mainCamera == null)
         {
@@ -200,7 +198,6 @@ public sealed class StartSceneCover : MonoBehaviour
     private void FindMenuElements(Transform canvasTransform)
     {
         menuButtons = new RectTransform[menuButtonNames.Length];
-        menuBasePositions = new Vector2[menuButtonNames.Length];
         menuBaseScales = new Vector3[menuButtonNames.Length];
         menuCanvasGroups = new CanvasGroup[menuButtonNames.Length];
         menuHovered = new bool[menuButtonNames.Length];
@@ -216,7 +213,6 @@ public sealed class StartSceneCover : MonoBehaviour
                 continue;
             }
 
-            menuBasePositions[i] = new Vector2(0f, MenuTopY - MenuSpacing * i);
             menuBaseScales[i] = button.localScale;
             CanvasGroup group = button.GetComponent<CanvasGroup>();
             if (group == null)
@@ -228,7 +224,6 @@ public sealed class StartSceneCover : MonoBehaviour
             group.alpha = 0f;
             group.interactable = false;
             group.blocksRaycasts = false;
-            button.anchoredPosition = menuBasePositions[i] + Vector2.right * MenuSlideDistance;
             button.localScale = menuBaseScales[i] * 0.96f;
             AddHoverTriggers(button, i);
         }
@@ -251,7 +246,11 @@ public sealed class StartSceneCover : MonoBehaviour
         {
             eventID = EventTriggerType.PointerEnter
         };
-        enter.callback.AddListener(_ => menuHovered[index] = true);
+        enter.callback.AddListener(_ =>
+        {
+            menuHovered[index] = true;
+            PlayButtonAudio();
+        });
         trigger.triggers.Add(enter);
 
         EventTrigger.Entry exit = new EventTrigger.Entry
@@ -260,6 +259,14 @@ public sealed class StartSceneCover : MonoBehaviour
         };
         exit.callback.AddListener(_ => menuHovered[index] = false);
         trigger.triggers.Add(exit);
+    }
+
+    private void PlayButtonAudio()
+    {
+        if (buttonAudioSource != null && buttonAudioSource.clip != null)
+        {
+            buttonAudioSource.PlayOneShot(buttonAudioSource.clip);
+        }
     }
 
     private void CreateFadePanel(Transform canvasTransform)
@@ -335,11 +342,6 @@ public sealed class StartSceneCover : MonoBehaviour
             float positionT = EaseOutBack(itemT);
             float alphaT = SmoothStep(itemT);
 
-            menuButtons[i].anchoredPosition =
-                Vector2.LerpUnclamped(
-                    menuBasePositions[i] + Vector2.right * MenuSlideDistance,
-                    menuBasePositions[i],
-                    positionT);
             menuButtons[i].localScale =
                 Vector3.LerpUnclamped(menuBaseScales[i] * 0.96f, menuBaseScales[i], positionT);
             menuCanvasGroups[i].alpha = alphaT;
@@ -357,7 +359,6 @@ public sealed class StartSceneCover : MonoBehaviour
                 continue;
             }
 
-            menuButtons[i].anchoredPosition = menuBasePositions[i];
             menuButtons[i].localScale = menuBaseScales[i];
             menuCanvasGroups[i].alpha = 1f;
             menuCanvasGroups[i].interactable = true;
@@ -385,8 +386,6 @@ public sealed class StartSceneCover : MonoBehaviour
                 target,
                 HoverSpeed * Time.unscaledDeltaTime);
 
-            menuButtons[i].anchoredPosition =
-                menuBasePositions[i] + Vector2.left * (HoverOffset * menuHoverAmounts[i]);
             menuButtons[i].localScale =
                 menuBaseScales[i] * (1f + 0.018f * menuHoverAmounts[i]);
         }
