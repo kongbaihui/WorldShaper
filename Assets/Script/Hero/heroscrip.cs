@@ -52,6 +52,9 @@ public class heroscrip : MonoBehaviour
     public float addjumpforce = 5f;
     private bool canaddjump = false;
     //end use
+    //used by pause
+    public GameObject ThePause = null;
+    //enduse
     [Header("Ground Detection")]
     [Tooltip("Layers that can be queried below the Hero. Ground and Breakable are enabled by default.")]
     [SerializeField] private LayerMask jumpableLayers = (1 << 6) | (1 << 7);
@@ -90,220 +93,222 @@ public class heroscrip : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (IsGrappling)
+        if (!ThePause.GetComponent<StopGame>().isPause)
         {
-            CleanNotMeleeState();
-            GiveAnimationRun(false);
-            return;
-        }
-
-        float horizontalInput = 0f;
-        //control -x
-        if (GameKeySettings.IsPressed(
-                GameKeyAction.MoveLeft))
-        {
-            horizontalInput = -1f;
-        }
-        else if (GameKeySettings.IsPressed(
-                     GameKeyAction.MoveRight))
-        {
-            horizontalInput = 1f;
-        }
-
-        HeroPhysics.velocity = new Vector2(
-            horizontalInput * xSpeed,
-            HeroPhysics.velocity.y);
-
-        if (horizontalInput != 0f)
-        {
-            GetComponent<SpriteRenderer>().flipX = horizontalInput < 0f;
-            GiveAnimationRun(true);
-        }
-        else
-        {
-            GiveAnimationRun(false);
-        }
-        bool onGround = OnTheGround();
-
-        //control y
-        if (onGround && !HaveArrowInStay && !IsShootLine)
-        {
-            if (GameKeySettings.WasPressed(GameKeyAction.Jump) && !GameKeySettings.IsPressed(GameKeyAction.MoveDown))
+            if (IsGrappling)
             {
-                GiveAnimationJump(true);
-                HadJump = true;
-                float tempXSpeed = HeroPhysics.velocity.x;
-                HeroPhysics.velocity = new Vector2(tempXSpeed, ySpeed);
-                jumptime = Time.time + addjumptime;
-                jumpinitialtime = Time.time;
-                canaddjump = true;
+                CleanNotMeleeState();
+                GiveAnimationRun(false);
+                return;
+            }
+
+            float horizontalInput = 0f;
+            //control -x
+            if (GameKeySettings.IsPressed(
+                    GameKeyAction.MoveLeft))
+            {
+                horizontalInput = -1f;
+            }
+            else if (GameKeySettings.IsPressed(
+                         GameKeyAction.MoveRight))
+            {
+                horizontalInput = 1f;
+            }
+
+            HeroPhysics.velocity = new Vector2(
+                horizontalInput * xSpeed,
+                HeroPhysics.velocity.y);
+
+            if (horizontalInput != 0f)
+            {
+                GetComponent<SpriteRenderer>().flipX = horizontalInput < 0f;
+                GiveAnimationRun(true);
             }
             else
             {
-                if (HadJump)
+                GiveAnimationRun(false);
+            }
+            bool onGround = OnTheGround();
+
+            //control y
+            if (onGround && !HaveArrowInStay && !IsShootLine)
+            {
+                if (GameKeySettings.WasPressed(GameKeyAction.Jump) && !GameKeySettings.IsPressed(GameKeyAction.MoveDown))
                 {
-                    GiveAnimationJump(false);
-                    HadJump = false;
+                    GiveAnimationJump(true);
+                    HadJump = true;
+                    float tempXSpeed = HeroPhysics.velocity.x;
+                    HeroPhysics.velocity = new Vector2(tempXSpeed, ySpeed);
+                    jumptime = Time.time + addjumptime;
+                    jumpinitialtime = Time.time;
+                    canaddjump = true;
                 }
                 else
                 {
-                    GetComponent<Animator>().SetBool("Fall", false);
-                }
-            }
-        }
-        else if (!onGround)//give animation of falling
-        {
-            if (!HadJump)
-            {
-                GetComponent<Animator>().SetBool("Fall", true);
-            }
-        }
-
-
-        if (!onGround && GameKeySettings.IsPressed(GameKeyAction.Jump))
-        {
-            if (Time.time < jumptime && canaddjump)
-            {
-                float tempXSpeed = HeroPhysics.velocity.x;
-                float tempYSpeed = HeroPhysics.velocity.y + addjumpforce * (Time.time - jumpinitialtime);
-                jumpinitialtime = Time.time;
-                HeroPhysics.velocity = new Vector2(tempXSpeed, tempYSpeed);
-            }
-        }
-        else if (!GameKeySettings.IsPressed(GameKeyAction.Jump))
-        {
-            canaddjump = false;
-        }
-        // 是否允许攻击：不在创造模式时才能攻击
-        bool canAttack =
-            !IsGrappling &&
-            (terrainController == null || !terrainController.IsBuildMode);
-
-        //shoot
-        //change by chu at 7/18/16:00 为远程攻击增加蓄力及滞空
-        if (canAttack)
-        {
-            if (!GameKeySettings.WasPressed(GameKeyAction.Laser))
-            {
-                if (!IsMelee)
-                {
-                    CleanMeleeState();
-                    // check interval
-                    if ((Time.time - BulletSpawnAt) > ShootInterval)
+                    if (HadJump)
                     {
-                        if (RemainNum > 0)
-                        {
-                            if (Mouse.current.leftButton.isPressed)
-                            {
-                                GiveAnimationBowAttack(true);
-                                if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
-                                HaveArrowInStay = true;
-                                float addValue = ChargeSpeed * Time.deltaTime;
-                                BulletSpeed = Mathf.Min(BulletSpeed + addValue, MaxBulletSpeed);
-                            }
-                            else
-                            {
-                                if (HaveArrowInStay)
-                                {
-                                    GiveAnimationBowAttack(false);
-                                    ShootArrow(BulletSpeed);
-                                    BulletSpawnAt = Time.time;
-                                    CleanNotMeleeState();
-                                    RemainNum--;
-                                    TheBowAudio.GetComponent<AudioSource>().Play();
-                                }
-                            }
-                        }
-
+                        GiveAnimationJump(false);
+                        HadJump = false;
                     }
-
-                }
-                else
-                {
-                    CleanNotMeleeState();
-                    if (Mouse.current.leftButton.wasPressedThisFrame)
+                    else
                     {
+                        GetComponent<Animator>().SetBool("Fall", false);
+                    }
+                }
+            }
+            else if (!onGround)//give animation of falling
+            {
+                if (!HadJump)
+                {
+                    GetComponent<Animator>().SetBool("Fall", true);
+                }
+            }
+
+
+            if (!onGround && GameKeySettings.IsPressed(GameKeyAction.Jump))
+            {
+                if (Time.time < jumptime && canaddjump)
+                {
+                    float tempXSpeed = HeroPhysics.velocity.x;
+                    float tempYSpeed = HeroPhysics.velocity.y + addjumpforce * (Time.time - jumpinitialtime);
+                    jumpinitialtime = Time.time;
+                    HeroPhysics.velocity = new Vector2(tempXSpeed, tempYSpeed);
+                }
+            }
+            else if (!GameKeySettings.IsPressed(GameKeyAction.Jump))
+            {
+                canaddjump = false;
+            }
+            // 是否允许攻击：不在创造模式时才能攻击
+            bool canAttack =
+                !IsGrappling &&
+                (terrainController == null || !terrainController.IsBuildMode);
+
+            //shoot
+            //change by chu at 7/18/16:00 为远程攻击增加蓄力及滞空
+            if (canAttack)
+            {
+                if (!GameKeySettings.WasPressed(GameKeyAction.Laser))
+                {
+                    if (!IsMelee)
+                    {
+                        CleanMeleeState();
                         // check interval
                         if ((Time.time - BulletSpawnAt) > ShootInterval)
                         {
-                            GiveAnimationMeleeAttack();
+                            if (RemainNum > 0)
+                            {
+                                if (Mouse.current.leftButton.isPressed)
+                                {
+                                    GiveAnimationBowAttack(true);
+                                    if (!onGround) { HeroPhysics.velocity = new Vector2(0, 0); }
+                                    HaveArrowInStay = true;
+                                    float addValue = ChargeSpeed * Time.deltaTime;
+                                    BulletSpeed = Mathf.Min(BulletSpeed + addValue, MaxBulletSpeed);
+                                }
+                                else
+                                {
+                                    if (HaveArrowInStay)
+                                    {
+                                        GiveAnimationBowAttack(false);
+                                        ShootArrow(BulletSpeed);
+                                        BulletSpawnAt = Time.time;
+                                        CleanNotMeleeState();
+                                        RemainNum--;
+                                        TheBowAudio.GetComponent<AudioSource>().Play();
+                                    }
+                                }
+                            }
 
-                            MeleeAttack();
-                            BulletSpawnAt = Time.time;
-
-                            TheSwordAudio.GetComponent<AudioSource>().Play();
                         }
+
                     }
-                    //check clip info to control towards of texture
-                    AnimatorStateInfo stateInfo = GetComponent<Animator>().GetCurrentAnimatorStateInfo(0);
-                    bool isPlaying = (stateInfo.IsName("AttackMove1") || stateInfo.IsName("AttackMove2") || stateInfo.IsName("AttackMove3"));
-                    if (isPlaying)
+                    else
                     {
-                        if (TheArrow.transform.up.x < 0)
+                        CleanNotMeleeState();
+                        if (Mouse.current.leftButton.wasPressedThisFrame)
                         {
-                            GetComponent<SpriteRenderer>().flipX = true;
+                            // check interval
+                            if ((Time.time - BulletSpawnAt) > ShootInterval)
+                            {
+                                GiveAnimationMeleeAttack();
+
+                                MeleeAttack();
+                                BulletSpawnAt = Time.time;
+
+                                TheSwordAudio.GetComponent<AudioSource>().Play();
+                            }
                         }
-                        else
+                        //check clip info to control towards of texture
+                        AnimatorStateInfo stateInfo = GetComponent<Animator>().GetCurrentAnimatorStateInfo(0);
+                        bool isPlaying = (stateInfo.IsName("AttackMove1") || stateInfo.IsName("AttackMove2") || stateInfo.IsName("AttackMove3"));
+                        if (isPlaying)
                         {
-                            GetComponent<SpriteRenderer>().flipX = false;
+                            if (TheArrow.transform.up.x < 0)
+                            {
+                                GetComponent<SpriteRenderer>().flipX = true;
+                            }
+                            else
+                            {
+                                GetComponent<SpriteRenderer>().flipX = false;
+                            }
                         }
                     }
                 }
             }
-        }
 
 
-        if (GameKeySettings.WasPressed(GameKeyAction.Laser))
-        {
-            if (TheChargeLineBar.GetComponent<LineChargeBar>().Charge == TheChargeLineBar.GetComponent<LineChargeBar>().MaxCharge)
+            if (GameKeySettings.WasPressed(GameKeyAction.Laser))
             {
-                ShootLine();
-                IsShootLine = true;
-                TheChargeLineBar.GetComponent<LineChargeBar>().Charge = 0;
-            }
-        }
-        //animation need
-        TheLine = GameObject.Find("Line(Clone)");
-        if (TheLine != null)
-        {
-            GiveAnimationShootLine(true);
-        }
-        else
-        {
-            GiveAnimationShootLine(false);
-        }
-
-
-        //control drop
-        if (onGround)
-        {
-            if (GameKeySettings.IsPressed(GameKeyAction.MoveDown))
-            {
-                if (GameKeySettings.WasPressed(GameKeyAction.Jump))
+                if (TheChargeLineBar.GetComponent<LineChargeBar>().Charge == TheChargeLineBar.GetComponent<LineChargeBar>().MaxCharge)
                 {
-                    //if not on the ground
-                    if (canDropThroughCurrentSurface &&
-                        !HeroPhysics.IsTouchingLayers(1 << LayerMask.NameToLayer("Ground")))
+                    ShootLine();
+                    IsShootLine = true;
+                    TheChargeLineBar.GetComponent<LineChargeBar>().Charge = 0;
+                }
+            }
+            //animation need
+            TheLine = GameObject.Find("Line(Clone)");
+            if (TheLine != null)
+            {
+                GiveAnimationShootLine(true);
+            }
+            else
+            {
+                GiveAnimationShootLine(false);
+            }
+
+
+            //control drop
+            if (onGround)
+            {
+                if (GameKeySettings.IsPressed(GameKeyAction.MoveDown))
+                {
+                    if (GameKeySettings.WasPressed(GameKeyAction.Jump))
                     {
-                        //enable trigger when tab s + space
-                        SelfColli.isTrigger = true;
+                        //if not on the ground
+                        if (canDropThroughCurrentSurface &&
+                            !HeroPhysics.IsTouchingLayers(1 << LayerMask.NameToLayer("Ground")))
+                        {
+                            //enable trigger when tab s + space
+                            SelfColli.isTrigger = true;
+                        }
                     }
                 }
             }
-        }
-        //change weapon
-        if (GameKeySettings.WasPressed(
-                GameKeyAction.SwitchWeapon))
-        {
-            IsMelee = !IsMelee;
-        }
+            //change weapon
+            if (GameKeySettings.WasPressed(
+                    GameKeyAction.SwitchWeapon))
+            {
+                IsMelee = !IsMelee;
+            }
 
-        //shoot line unmove
-        if (IsShootLine)
-        {
-            HeroPhysics.velocity = new Vector2(0, 0);
+            //shoot line unmove
+            if (IsShootLine)
+            {
+                HeroPhysics.velocity = new Vector2(0, 0);
+            }
         }
-
     }
     //return whether on the ground
     private bool OnTheGround()

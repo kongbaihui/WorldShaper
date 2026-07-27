@@ -1,0 +1,33 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using System;
+using TMPro;
+public class TimeCount : MonoBehaviour
+{
+    public TMP_Text TheTmpText = null;
+    public float CountTime = 0;
+    void Start()
+    {
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        CountTime += Time.deltaTime;
+        TheTmpText.text = TimeFormatter(CountTime);
+    }
+    private string TimeFormatter(float CountTime)
+    {
+        int min = (int)CountTime / 60;
+        int sec = (int)(CountTime - min * 60);
+        int msec = (int)((CountTime - min * 60 - sec) * 100);
+        return min.ToString("D2") + ":" + sec.ToString("D2") + "." + msec.ToString("D2");
+    }
+    public void RestartTime()
+    {
+        CountTime = 0;
+    }
+}
