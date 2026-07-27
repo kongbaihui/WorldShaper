@@ -6,6 +6,9 @@ public class BossBarScrip : MonoBehaviour
     public float InitialPositionX = 55;
     public float InitialPositionY = -35;
     [SerializeField] private PrototypeDamageable observedDamageable;
+    [SerializeField] private TimeCount timeCount;
+
+    private bool scoreSubmitted;
 
     private void OnEnable()
     {
@@ -40,12 +43,43 @@ public class BossBarScrip : MonoBehaviour
         string sceneName = SceneManager.GetActiveScene().name;
         if (BarRate == 0 && sceneName == "BossScene")
         {
+            SubmitScore(2);
             WinLoseChange.JumpToEnd(true);
         }
         else if (BarRate == 0 && sceneName == "SampleScene")
         {
+            SubmitScore(1);
             WinLoseChange.JumpToNext();
         }
+    }
+
+    private void SubmitScore(int bossId)
+    {
+        if (scoreSubmitted)
+        {
+            return;
+        }
+
+        scoreSubmitted = true;
+
+        if (timeCount == null)
+        {
+            timeCount = FindObjectOfType<TimeCount>();
+        }
+
+        SupabaseLeaderboardService leaderboardService = SupabaseLeaderboardService.Instance;
+        if (leaderboardService == null)
+        {
+            leaderboardService = FindObjectOfType<SupabaseLeaderboardService>();
+        }
+
+        if (timeCount == null || leaderboardService == null)
+        {
+            Debug.LogWarning("Leaderboard score was not submitted because TimeCount or SupabaseLeaderboardService was not found.");
+            return;
+        }
+
+        leaderboardService.SubmitScore(bossId, timeCount.GetMilliseconds());
     }
 
     private void HandleHealthChanged(int currentHealth, int maximumHealth)

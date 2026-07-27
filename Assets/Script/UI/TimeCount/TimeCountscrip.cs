@@ -26,6 +26,21 @@ public class TimeCount : MonoBehaviour
         int msec = (int)((CountTime - min * 60 - sec) * 100);
         return min.ToString("D2") + ":" + sec.ToString("D2") + "." + msec.ToString("D2");
     }
+
+    public int GetMilliseconds()
+    {
+        return Mathf.Max(0, (int)(CountTime * 1000f));
+    }
+
+    public static string FormatMilliseconds(int milliseconds)
+    {
+        int safeMilliseconds = Mathf.Max(0, milliseconds);
+        int min = safeMilliseconds / 60000;
+        int sec = safeMilliseconds / 1000 % 60;
+        int msec = safeMilliseconds % 1000;
+        return min.ToString("D2") + ":" + sec.ToString("D2") + "." + msec.ToString("D3");
+    }
+
     public void RestartTime()
     {
         CountTime = 0;

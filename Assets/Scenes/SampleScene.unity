@@ -4332,6 +4332,7 @@ MonoBehaviour:
   InitialPositionX: 55
   InitialPositionY: -35
   observedDamageable: {fileID: 1948843047}
+  timeCount: {fileID: 284363897}
 --- !u!212 &1755666946
 SpriteRenderer:
   m_ObjectHideFlags: 0
