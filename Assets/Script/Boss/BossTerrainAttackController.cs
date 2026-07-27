@@ -926,8 +926,11 @@ namespace FinalGame.Boss
             renderer.color = sourceRenderer.color;
             renderer.sortingOrder = DebrisSortingOrder;
 
-            debrisObject.AddComponent<BoxCollider2D>().size =
-                Vector2.one;
+            BoxCollider2D debrisCollider =
+                debrisObject.AddComponent<BoxCollider2D>();
+
+            debrisCollider.size = sourceRenderer.sprite.bounds.size;
+            debrisCollider.offset = sourceRenderer.sprite.bounds.center;
             debrisObject.AddComponent<Rigidbody2D>();
             DebrisProjectile debris =
                 debrisObject.AddComponent<DebrisProjectile>();

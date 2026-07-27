@@ -22,6 +22,9 @@ public class GrappleHook : MonoBehaviour
     private bool pulling;
     private bool attached;
 
+    public bool IsPulling => pulling;
+    public bool IsAttached => attached;
+
     private void Awake()
     {
         hookCollider = GetComponent<Collider2D>();

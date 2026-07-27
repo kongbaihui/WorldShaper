@@ -197,17 +197,14 @@ public static class GameKeySettings
 
         Key key = Get(action);
 
+        if (key >= Key.Digit0 &&
+            key <= Key.Digit9)
+        {
+            return key.ToString().Substring(5);
+        }
+
         switch (key)
         {
-            case Key.Digit1:
-                return "1";
-
-            case Key.Digit2:
-                return "2";
-
-            case Key.Digit3:
-                return "3";
-
             case Key.Space:
                 return "Space";
 

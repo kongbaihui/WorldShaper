@@ -1364,7 +1364,7 @@ MonoBehaviour:
   _arenaSize: {x: 156, y: 74}
   _gridSize: 0.5
   _creationCooldown: 0.25
-  _maximumCreationDistance: 40
+  _maximumCreationDistance: 70
   _additionalPlatformVerticalGap: 0
 --- !u!114 &521657204
 MonoBehaviour:

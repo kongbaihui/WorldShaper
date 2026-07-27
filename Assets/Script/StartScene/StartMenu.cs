@@ -51,6 +51,11 @@ public class StartMenu : MonoBehaviour
         SceneManager.LoadScene(GameScene2);
     }
 
+    public void StartTutorial()
+    {
+        SceneManager.LoadScene("TutorialScene");
+    }
+
     public void OpenStart()
     {
         if(startPanel != null)

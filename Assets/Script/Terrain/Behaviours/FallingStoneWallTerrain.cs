@@ -503,6 +503,15 @@ namespace Challenge2.TerrainPrototype
             if (target.TryApplyDamage(_impactDamage, Owner, Creator))
             {
                 _nextDamageTimeByTarget[targetId] = Time.time + _perTargetCooldown;
+                if (TutorialManager.Instance != null)
+                {
+                    TutorialTarget tutorialTarget =
+                        collision.collider.GetComponentInParent<TutorialTarget>();
+                    if (tutorialTarget != null)
+                    {
+                        tutorialTarget.TryReceiveHit(TutorialHitType.WallDamage);
+                    }
+                }
             }
         }
 
