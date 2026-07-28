@@ -7,7 +7,7 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class StartSceneCover : MonoBehaviour
 {
-    private const string BackgroundResourcePath = "Art/StartMenu/StartBackground";
+    private const string BackgroundResourcePath = "Art/StartMenu/3";
     private const float FadeDuration = 0.9f;
     private const float MenuDelay = 0.3f;
     private const float MenuItemDuration = 0.48f;
