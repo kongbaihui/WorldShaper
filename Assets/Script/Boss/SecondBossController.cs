@@ -1509,10 +1509,18 @@ public class SecondBossController : MonoBehaviour
 
         for (int i = 0; i < grappleHooks.Length; i++)
         {
-            if (grappleHooks[i] != null)
-            {
-                grappleHooks[i].SetActive(true);
-            }
+            RevealGrappleHook(i);
+        }
+    }
+
+    private void RevealGrappleHook(int index)
+    {
+        if (grappleHooks != null &&
+            index >= 0 &&
+            index < grappleHooks.Length &&
+            grappleHooks[index] != null)
+        {
+            grappleHooks[index].SetActive(true);
         }
     }
 
@@ -1717,6 +1725,7 @@ public class SecondBossController : MonoBehaviour
         }
 
         topSpikeDropped[index] = true;
+        RevealGrappleHook(index);
 
         if (topSpikeBodies != null &&
             index < topSpikeBodies.Length &&
